@@ -108,6 +108,7 @@
     const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
     let particles = [];
     let dpr = Math.min(window.devicePixelRatio || 1, 2);
+    let particlesRafId = null;
 
     const resize = () => {
       dpr = Math.min(window.devicePixelRatio || 1, 2);
@@ -161,13 +162,20 @@
         ctx.arc(p.x, p.y, glowR, 0, Math.PI * 2);
         ctx.fill();
       });
-      if (!reduceMotion) requestAnimationFrame(draw);
+      if (!reduceMotion) particlesRafId = requestAnimationFrame(draw);
     };
 
     resize();
     createParticles();
     window.addEventListener('resize', () => { resize(); createParticles(); }, { passive: true });
-    requestAnimationFrame(draw);
+    particlesRafId = requestAnimationFrame(draw);
+
+    document.addEventListener('minigame:open', () => {
+      if (particlesRafId) { cancelAnimationFrame(particlesRafId); particlesRafId = null; }
+    });
+    document.addEventListener('minigame:close', () => {
+      if (!reduceMotion && !particlesRafId) particlesRafId = requestAnimationFrame(draw);
+    });
   }
 
   /* ---------- underwater bubbles ---------- */
@@ -177,6 +185,7 @@
     const reduceMotionB = matchMedia('(prefers-reduced-motion: reduce)').matches;
     let bubbles = [];
     let bdpr = Math.min(window.devicePixelRatio || 1, 2);
+    let bubblesRafId = null;
 
     const bResize = () => {
       bdpr = Math.min(window.devicePixelRatio || 1, 2);
@@ -242,13 +251,20 @@
           bctx.stroke();
         }
       });
-      if (!reduceMotionB) requestAnimationFrame(bDraw);
+      if (!reduceMotionB) bubblesRafId = requestAnimationFrame(bDraw);
     };
 
     bResize();
     createBubbles();
     window.addEventListener('resize', () => { bResize(); createBubbles(); }, { passive: true });
-    requestAnimationFrame(bDraw);
+    bubblesRafId = requestAnimationFrame(bDraw);
+
+    document.addEventListener('minigame:open', () => {
+      if (bubblesRafId) { cancelAnimationFrame(bubblesRafId); bubblesRafId = null; }
+    });
+    document.addEventListener('minigame:close', () => {
+      if (!reduceMotionB && !bubblesRafId) bubblesRafId = requestAnimationFrame(bDraw);
+    });
   }
 
   /* ---------- cursor glow (desktop only) ---------- */

@@ -3,9 +3,9 @@
 
   const ROUND_SECONDS = 30;
   const BUBBLE_TYPES = [
-    { cls: 'bubble-white', points: 100, weight: 55, sizeMin: 44, sizeMax: 80, speedMin: 55, speedMax: 125 },
-    { cls: 'bubble-blue', points: 150, weight: 30, sizeMin: 34, sizeMax: 62, speedMin: 85, speedMax: 165 },
-    { cls: 'bubble-purple', points: 300, weight: 15, sizeMin: 26, sizeMax: 48, speedMin: 120, speedMax: 215 },
+    { cls: 'bubble-white', points: 100, weight: 55, sizeMin: 44, sizeMax: 80, speedMin: 66, speedMax: 150 },
+    { cls: 'bubble-blue', points: 150, weight: 30, sizeMin: 34, sizeMax: 62, speedMin: 102, speedMax: 198 },
+    { cls: 'bubble-purple', points: 300, weight: 15, sizeMin: 26, sizeMax: 48, speedMin: 144, speedMax: 258 },
   ];
   const TOTAL_WEIGHT = BUBBLE_TYPES.reduce((s, t) => s + t.weight, 0);
   const RANK_THRESHOLDS = [
@@ -57,12 +57,14 @@
     modal.classList.add('is-open');
     modal.setAttribute('aria-hidden', 'false');
     showPanel('start');
+    document.dispatchEvent(new CustomEvent('minigame:open'));
   }
 
   function closeModal() {
     modal.classList.remove('is-open');
     modal.setAttribute('aria-hidden', 'true');
     stopGame();
+    document.dispatchEvent(new CustomEvent('minigame:close'));
   }
 
   function showPanel(name) {
@@ -107,6 +109,7 @@
       el,
       x,
       y: rect.height,
+      spawnTop: rect.height,
       size,
       speed: Math.random() * (type.speedMax - type.speedMin) + type.speedMin,
       wobblePhase: Math.random() * Math.PI * 2,
@@ -137,6 +140,10 @@
     score += bubble.points;
     scoreEl.textContent = score;
     showScorePop(bubble);
+    const wobbleX = Math.sin(bubble.wobblePhase) * bubble.wobbleAmp;
+    const dy = bubble.y - bubble.spawnTop;
+    bubble.el.style.transition = 'transform .2s ease, opacity .2s ease';
+    bubble.el.style.transform = `translate3d(${wobbleX}px, ${dy}px, 0) scale(1.5)`;
     bubble.el.classList.add('is-popped');
     setTimeout(() => bubble.el.remove(), 200);
     bubbles = bubbles.filter(b => b !== bubble);
@@ -159,13 +166,12 @@
     const dt = Math.min((time - lastFrameTime) / 1000, 0.05);
     lastFrameTime = time;
 
-    const rect = field.getBoundingClientRect();
     bubbles.forEach(b => {
       b.y -= b.speed * dt;
       b.wobblePhase += b.wobbleSpeed * dt;
       const wobbleX = Math.sin(b.wobblePhase) * b.wobbleAmp;
-      b.el.style.top = b.y + 'px';
-      b.el.style.left = (b.x + wobbleX) + 'px';
+      const dy = b.y - b.spawnTop;
+      b.el.style.transform = `translate3d(${wobbleX}px, ${dy}px, 0)`;
     });
 
     bubbles = bubbles.filter(b => {
