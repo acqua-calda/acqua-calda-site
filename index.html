@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Acqua Calda | Official Site</title>
+<meta name="description" content="音楽サークルユニット Acqua Calda(アクア・カルダ) オフィシャルサイト">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=Noto+Sans+JP:wght@300;400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<canvas class="bg-particles" id="bgParticles"></canvas>
+<canvas class="bg-bubbles" id="bgBubbles"></canvas>
+<div class="noise-overlay"></div>
+<div class="cursor-glow" id="cursorGlow"></div>
+
+<!-- ===== HEADER ===== -->
+<header class="site-header" id="siteHeader">
+  <a href="#top" class="brand">ACQUA<span>CALDA</span></a>
+  <nav class="main-nav" id="mainNav">
+    <a href="#about" data-nav>ABOUT</a>
+    <a href="#members" data-nav>MEMBERS</a>
+    <a href="#discography" data-nav>DISCOGRAPHY</a>
+    <a href="#live" data-nav>LIVE</a>
+    <a href="#contact" data-nav>CONTACT</a>
+  </nav>
+  <button class="nav-toggle" id="navToggle" aria-label="メニューを開く" aria-expanded="false">
+    <span></span><span></span><span></span>
+  </button>
+</header>
+
+<!-- ===== HERO ===== -->
+<section class="hero" id="top">
+  <div class="hero-bg">
+    <div class="hero-grid"></div>
+    <div class="glow glow-cyan"></div>
+    <div class="glow glow-pink"></div>
+  </div>
+  <div class="hero-inner">
+    <p class="hero-eyebrow">MUSIC CIRCLE UNIT</p>
+    <h1 class="hero-title" data-text="ACQUA CALDA">ACQUA CALDA</h1>
+    <p class="hero-copy">重低音のうねりと、灼けるようなスクリームが交わる。</p>
+    <div class="hero-actions">
+      <a href="#discography" class="btn btn-primary">LISTEN NOW</a>
+      <a href="#about" class="btn btn-outline">ABOUT US</a>
+    </div>
+  </div>
+  <div class="scroll-cue"><span></span>SCROLL</div>
+</section>
+
+<main>
+
+  <!-- ===== ABOUT ===== -->
+  <section class="section" id="about">
+    <div class="section-head">
+      <span class="section-num">01</span>
+      <h2 class="section-title">ABOUT</h2>
+    </div>
+    <div class="about-grid">
+      <div class="about-text reveal">
+        <p class="lead">Acqua Calda(アクア・カルダ)は、音楽アプリ「nana」の中で結成されたオルタナティブロック・ユニットです。</p>
+        <p>コンポーザーOZが奏でる7弦ギターの重低音でエレクトロなサウンドに、ボーカルYUUの圧倒的なシャウト・デスボイス・スクリームが折り重なる——その表現の振れ幅と、二人の音が噛み合う瞬間に生まれるうねりが、Acqua Caldaというユニットの核になっています。</p>
+        <p>結成以来、その一体感あるサウンドは各所で高い評価を得ています。</p>
+      </div>
+      <div class="about-visual reveal">
+        <div class="about-frame">
+          <img src="img/Maine.jfif" alt="Acqua Calda">
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== MEMBERS ===== -->
+  <section class="section section-alt" id="members">
+    <div class="section-head">
+      <span class="section-num">02</span>
+      <h2 class="section-title">MEMBERS</h2>
+    </div>
+    <div class="members-grid">
+
+      <article class="member-card reveal">
+        <div class="member-photo"><img src="img/YUU_profile.png" alt="YUU"></div>
+        <div class="member-info">
+          <p class="member-role">VOCAL</p>
+          <h3 class="member-name">YUU</h3>
+          <p class="member-desc note">※プロフィール準備中</p>
+        </div>
+      </article>
+
+      <article class="member-card reveal">
+        <div class="member-photo"><img src="img/OZ_profile.png" alt="OZ"></div>
+        <div class="member-info">
+          <p class="member-role">GUITAR / COMPOSER</p>
+          <h3 class="member-name">OZ</h3>
+          <p class="member-desc">Acqua Caldaのギタリスト。全曲の作詞作曲を行っている。バックボーンにはMUCCやDIR EN GREYなど、7弦ギターを用いた重低音なバンドに強い影響を受けている。ゲームミュージックやEDMにも造詣が深く、自身の楽曲に取り入れたいと考えている。尊敬している人物はミヤ（MUCCのギタリスト）、光田康典（『クロノ・トリガー』『ゼノブレイド』などの作曲者）、下村陽子（『キングダムハーツ』シリーズや『聖剣伝説 LOM』の作曲者）。</p>
+        </div>
+      </article>
+
+    </div>
+  </section>
+
+  <!-- ===== DISCOGRAPHY ===== -->
+  <section class="section" id="discography">
+    <div class="section-head">
+      <span class="section-num">03</span>
+      <h2 class="section-title">DISCOGRAPHY</h2>
+    </div>
+    <div class="disco-list">
+
+      <article class="track reveal">
+        <div class="track-art"><img src="img/Valdation_jacket.jfif" alt="Validation"></div>
+        <div class="track-body">
+          <p class="track-date">2026.09.05</p>
+          <h3 class="track-title">Validation</h3>
+          <p class="track-tags">#オルタナティブロック #ラウドロック</p>
+        </div>
+        <a href="#" class="track-play" data-src="audio/Valdation.mp3" aria-label="再生">▶</a>
+      </article>
+
+      <article class="track track-soon reveal">
+        <div class="track-art"><span>?</span></div>
+        <div class="track-body">
+          <h3 class="track-title">COMING SOON</h3>
+        </div>
+      </article>
+
+      <article class="track track-soon reveal">
+        <div class="track-art"><span>?</span></div>
+        <div class="track-body">
+          <h3 class="track-title">COMING SOON</h3>
+        </div>
+      </article>
+
+    </div>
+  </section>
+
+  <!-- ===== LIVE ===== -->
+  <section class="section section-alt" id="live">
+    <div class="section-head">
+      <span class="section-num">04</span>
+      <h2 class="section-title">LIVE / EVENT</h2>
+    </div>
+    <div class="live-list">
+      <div class="live-item reveal">
+        <div class="live-date"><span class="live-day">27</span><span class="live-month">SEP 2026</span></div>
+        <div class="live-info">
+          <h3>ダミーライブ～地獄温泉～OYU</h3>
+          <p>@ Dummy Live House / OPEN 18:00 START 19:00</p>
+        </div>
+        <span class="live-status">予定</span>
+      </div>
+      <div class="live-item reveal">
+        <div class="live-date"><span class="live-day">14</span><span class="live-month">JUN 2026</span></div>
+        <div class="live-info">
+          <h3>ダミーライブ</h3>
+          <p>@ Dummy Hall / OPEN 12:00 START 13:00</p>
+        </div>
+        <span class="live-status status-done">終了</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== CONTACT / SNS ===== -->
+  <section class="section" id="contact">
+    <div class="section-head">
+      <span class="section-num">05</span>
+      <h2 class="section-title">CONTACT</h2>
+    </div>
+    <div class="contact-inner">
+      <p class="lead">ライブ出演・タイアップ・お問い合わせはこちらから。</p>
+      <div class="sns-row">
+        <a href="#" class="sns-btn" aria-label="X (Twitter)">X</a>
+        <a href="#" class="sns-btn" aria-label="Instagram">IG</a>
+        <a href="#" class="sns-btn" aria-label="YouTube">YT</a>
+        <a href="#" class="sns-btn" aria-label="Email">MAIL</a>
+      </div>
+      <p class="note">※SNSリンクはすべてダミー（#）です。実際のURLに差し替えてください。</p>
+    </div>
+  </section>
+
+</main>
+
+<footer class="site-footer">
+  <p>&copy; 2026 Acqua Calda. All rights reserved.</p>
+  <p class="footer-note">This is a dummy/sample site structure.</p>
+</footer>
+
+<script src="js/script.js?v=7"></script>
+</body>
+</html>
