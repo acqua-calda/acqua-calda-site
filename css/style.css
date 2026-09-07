@@ -409,19 +409,6 @@ img{ max-width:100%; display:block; }
   .member-desc{ font-size: 10.5px; line-height: 1.55; }
 }
 
-/* ---------- nav game button ---------- */
-.nav-game-btn{
-  font-family: var(--font-display);
-  font-size: 12px; letter-spacing: 0.08em; font-weight: 700;
-  color: var(--black) !important;
-  background: linear-gradient(120deg, var(--cyan), var(--pink));
-  padding: 8px 16px; border-radius: 999px;
-  box-shadow: 0 0 16px rgba(0,224,255,0.35);
-  transition: transform .25s ease, box-shadow .25s ease;
-}
-.nav-game-btn::after{ display:none; }
-.nav-game-btn:hover{ transform: translateY(-2px); box-shadow: 0 4px 20px rgba(47,123,255,0.45); color: var(--black); }
-
 /* ---------- mini game modal ---------- */
 .game-modal{
   position: fixed; inset: 0; z-index: 1000;
@@ -441,6 +428,14 @@ img{ max-width:100%; display:block; }
   padding: 40px 28px 32px;
   text-align: center;
   max-height: 92vh; overflow: hidden;
+}
+/* while playing, shrink the card to hug the phone-shaped stage instead of framing it with a lot of empty space */
+@media (min-width: 481px){
+  .game-modal-inner:has(.game-panel-play:not([hidden])){
+    width: fit-content; max-width: none;
+    max-height: 94vh;
+    padding: 20px;
+  }
 }
 .game-close{
   position:absolute; top: 14px; right: 14px;
@@ -470,16 +465,19 @@ img{ max-width:100%; display:block; }
 
 /* iPhone-like portrait screen (9:19.5) so the game reads as a phone screen */
 .game-stage{
-  display:flex; flex-direction:column; gap: 10px;
+  display:flex; flex-direction:column;
   aspect-ratio: 9 / 19.5;
-  height: min(68vh, 660px);
+  height: min(calc(94vh - 40px), 760px);
   width: auto; max-width: 100%;
   margin: 0 auto;
 }
 .game-hud{
-  flex: 0 0 auto;
+  position: absolute; top: 0; left: 0; right: 0; z-index: 5;
   display:flex; justify-content:space-between; align-items:baseline;
+  padding: 14px 16px 26px;
   font-family: var(--font-display); font-size: 13px; color: var(--fg-dim);
+  background: linear-gradient(180deg, rgba(2,8,26,0.65), rgba(2,8,26,0));
+  pointer-events: none;
 }
 .game-hud-score b{ color: var(--cyan); font-size: 16px; margin-left: 6px; }
 .game-hud-timer{ color: var(--fg-dim); }
@@ -539,8 +537,24 @@ img{ max-width:100%; display:block; }
 .game-panel-result .hero-actions{ justify-content:center; }
 
 @media (max-width: 480px){
-  .game-modal-inner{ padding: 32px 18px 24px; }
-  .nav-game-btn{ padding: 7px 12px; font-size: 11px; }
+  .game-modal{ padding: 0; }
+  .game-modal-inner{
+    width: 100vw; max-width: 100vw;
+    height: 100vh; height: 100dvh; max-height: 100vh; max-height: 100dvh;
+    border-radius: 0; border: none; box-shadow: none;
+    padding: max(24px, env(safe-area-inset-top)) 18px max(16px, env(safe-area-inset-bottom));
+    display: flex; flex-direction: column;
+  }
+  .game-panel-start, .game-panel-result{
+    flex: 1; min-height: 0;
+    display: flex; flex-direction: column; justify-content: center;
+  }
+  .game-panel-start[hidden], .game-panel-result[hidden]{ display: none; }
+  .game-panel-play{ flex: 1; min-height: 0; }
+  .game-stage{
+    aspect-ratio: unset;
+    width: 100%; height: 100%; max-width: 100%;
+  }
 }
 
 @media (prefers-reduced-motion: reduce){

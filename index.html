@@ -8,7 +8,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=Noto+Sans+JP:wght@300;400;500;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/style.css?v=4">
+<link rel="stylesheet" href="css/style.css?v=9">
 </head>
 <body>
 
@@ -26,7 +26,7 @@
     <a href="#discography" data-nav>DISCOGRAPHY</a>
     <a href="#live" data-nav>LIVE</a>
     <a href="#contact" data-nav>CONTACT</a>
-    <a href="#" id="gameNavBtn" class="nav-game-btn">GAME</a>
+    <a href="#" id="gameNavBtn">GAME</a>
   </nav>
   <button class="nav-toggle" id="navToggle" aria-label="メニューを開く" aria-expanded="false">
     <span></span><span></span><span></span>
@@ -208,12 +208,12 @@
 
     <div class="game-panel game-panel-play" id="gamePlay" hidden>
       <div class="game-stage">
-        <div class="game-hud">
-          <span class="game-hud-score">SCORE <b id="gameScoreVal">0</b></span>
-          <span class="game-hud-timer"><b id="gameTimerVal">30</b>s</span>
-        </div>
         <div class="bubble-field" id="bubbleField">
           <video class="bubble-field-bg" src="video/game_backscreen.mp4" autoplay muted loop playsinline></video>
+          <div class="game-hud">
+            <span class="game-hud-score">SCORE <b id="gameScoreVal">0</b></span>
+            <span class="game-hud-timer"><b id="gameTimerVal">30</b>s</span>
+          </div>
         </div>
       </div>
     </div>
