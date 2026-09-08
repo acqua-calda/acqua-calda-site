@@ -37,10 +37,59 @@
   bgm.volume = 0.5;
 
   const popSoundSrc = 'audio/bubble.mp3';
-  function playPopSound() {
-    const sfx = new Audio(popSoundSrc);
-    sfx.volume = 0.7;
+  let audioCtx = null;
+  let popBuffer = null;
+  let popBufferLoading = null;
+
+  function loadPopBuffer() {
+    if (!popBufferLoading) {
+      popBufferLoading = fetch(popSoundSrc)
+        .then(res => res.arrayBuffer())
+        .then(data => audioCtx.decodeAudioData(data))
+        .then(buffer => { popBuffer = buffer; })
+        .catch(() => {});
+    }
+    return popBufferLoading;
+  }
+
+  function initAudio() {
+    if (audioCtx) return;
+    const Ctx = window.AudioContext || window.webkitAudioContext;
+    if (!Ctx) return;
+    audioCtx = new Ctx();
+    loadPopBuffer();
+  }
+
+  // Fallback pool used only if Web Audio decoding is unavailable/fails,
+  // so we still avoid allocating a fresh <audio> element on every pop.
+  const fallbackPoolSize = 6;
+  const fallbackPool = [];
+  let fallbackIndex = 0;
+
+  function playPopSoundFallback() {
+    if (fallbackPool.length < fallbackPoolSize) {
+      const sfx = new Audio(popSoundSrc);
+      sfx.volume = 0.7;
+      fallbackPool.push(sfx);
+    }
+    const sfx = fallbackPool[fallbackIndex];
+    fallbackIndex = (fallbackIndex + 1) % fallbackPool.length;
+    sfx.currentTime = 0;
     sfx.play().catch(() => {});
+  }
+
+  function playPopSound() {
+    if (audioCtx && popBuffer) {
+      if (audioCtx.state === 'suspended') audioCtx.resume();
+      const source = audioCtx.createBufferSource();
+      source.buffer = popBuffer;
+      const gain = audioCtx.createGain();
+      gain.gain.value = 0.7;
+      source.connect(gain).connect(audioCtx.destination);
+      source.start(0);
+      return;
+    }
+    playPopSoundFallback();
   }
 
   let score = 0;
@@ -184,6 +233,7 @@
 
   /* ---------- game flow ---------- */
   function startGame() {
+    initAudio();
     score = 0;
     timeLeft = ROUND_SECONDS;
     bubbles.forEach(b => b.el.remove());
