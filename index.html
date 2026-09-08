@@ -7,8 +7,8 @@
 <meta name="description" content="音楽サークルユニット Acqua Calda(アクア・カルダ) オフィシャルサイト">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=Noto+Sans+JP:wght@300;400;500;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/style.css?v=15">
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=Baloo+2:wght@600;700;800&family=Noto+Sans+JP:wght@300;400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css?v=16">
 </head>
 <body>
 
@@ -222,19 +222,28 @@
     </div>
 
     <div class="game-panel game-panel-result" id="gameResult" hidden>
-      <p class="hero-eyebrow">RESULT</p>
-      <h2 class="game-rank" id="gameRank">S</h2>
-      <p class="game-result-score">SCORE <b id="gameFinalScore">0</b></p>
-      <div class="result-dialogue">
-        <img class="result-dialogue-char" id="gameResultChar" src="img/OZ_kawaii.png" alt="OZ">
-        <div class="result-dialogue-box">
-          <p class="result-dialogue-name" id="gameResultName">OZ</p>
-          <p class="result-dialogue-text" id="gameResultLine"></p>
+      <div class="result-stage">
+        <img class="result-stage-bg" src="img/result.png" alt="">
+        <div class="result-overlay">
+          <div class="result-header">
+            <p class="hero-eyebrow">RESULT</p>
+            <h2 class="game-rank" id="gameRank">S</h2>
+            <p class="game-result-score">SCORE <b id="gameFinalScore">0</b></p>
+          </div>
+          <div class="result-bottom">
+            <div class="result-dialogue-wrap">
+              <img class="result-dialogue-char" id="gameResultChar" src="img/OZ_kawaii.png" alt="OZ">
+              <div class="result-dialogue-box">
+                <p class="result-dialogue-name" id="gameResultName">OZ</p>
+                <p class="result-dialogue-text" id="gameResultLine"></p>
+              </div>
+            </div>
+            <div class="hero-actions result-actions">
+              <button class="btn btn-primary" id="gameRetryBtn">RETRY</button>
+              <button class="btn btn-outline" id="gameCloseBtn2">CLOSE</button>
+            </div>
+          </div>
         </div>
-      </div>
-      <div class="hero-actions">
-        <button class="btn btn-primary" id="gameRetryBtn">RETRY</button>
-        <button class="btn btn-outline" id="gameCloseBtn2">CLOSE</button>
       </div>
     </div>
   </div>
