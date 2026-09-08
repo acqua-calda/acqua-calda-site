@@ -21,8 +21,11 @@
     C: { name: 'YUU', img: 'img/YUU_kawaii.png', line: 'まあまあかな。次はがんばろう！' },
     D: { name: 'OZ', img: 'img/OZ_kawaii.png', line: 'あちゃー…次はリベンジな！' },
   };
-  const LEADERBOARD_KEY = 'acquaBubblePopLeaderboard';
+  const LEADERBOARD_COLLECTION = 'leaderboard';
   const LEADERBOARD_MAX = 20;
+  const leaderboardDb = (typeof firebase !== 'undefined' && firebase.apps && firebase.apps.length)
+    ? firebase.firestore()
+    : null;
 
   const modal = document.getElementById('gameModal');
   const navBtn = document.getElementById('gameNavBtn');
@@ -161,25 +164,15 @@
     rankingPanel.hidden = name !== 'ranking';
   }
 
-  /* ---------- leaderboard ---------- */
-  function loadLeaderboard() {
-    try {
-      const data = JSON.parse(localStorage.getItem(LEADERBOARD_KEY));
-      return Array.isArray(data) ? data : [];
-    } catch {
-      return [];
-    }
-  }
-
+  /* ---------- leaderboard (shared, via Firestore) ---------- */
   function saveLeaderboardEntry(name, score, rank) {
-    const list = loadLeaderboard();
-    list.push({ name, score, rank });
-    list.sort((a, b) => b.score - a.score);
-    const trimmed = list.slice(0, LEADERBOARD_MAX);
-    try {
-      localStorage.setItem(LEADERBOARD_KEY, JSON.stringify(trimmed));
-    } catch {}
-    return trimmed;
+    if (!leaderboardDb) return Promise.reject(new Error('Firestore not available'));
+    return leaderboardDb.collection(LEADERBOARD_COLLECTION).add({
+      name,
+      score,
+      rank,
+      createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+    });
   }
 
   function escapeHtml(str) {
@@ -189,19 +182,34 @@
   }
 
   function renderRanking() {
-    const list = loadLeaderboard();
-    if (!list.length) {
-      rankingList.innerHTML = '<p class="ranking-empty">まだ記録がありません</p>';
+    if (!leaderboardDb) {
+      rankingList.innerHTML = '<p class="ranking-empty">ランキングを読み込めませんでした</p>';
       return;
     }
-    rankingList.innerHTML = list.map((entry, i) => `
-      <div class="ranking-row${i < 3 ? ' is-top3' : ''}">
-        <span class="ranking-pos">${i + 1}</span>
-        <span class="ranking-name">${escapeHtml(entry.name || 'なまえなし')}</span>
-        <span class="ranking-score">${entry.score}</span>
-        <span class="ranking-badge">${entry.rank}</span>
-      </div>
-    `).join('');
+    rankingList.innerHTML = '<p class="ranking-empty">読み込み中…</p>';
+    leaderboardDb.collection(LEADERBOARD_COLLECTION)
+      .orderBy('score', 'desc')
+      .limit(LEADERBOARD_MAX)
+      .get()
+      .then((snapshot) => {
+        if (snapshot.empty) {
+          rankingList.innerHTML = '<p class="ranking-empty">まだ記録がありません</p>';
+          return;
+        }
+        const rows = [];
+        snapshot.forEach((doc) => rows.push(doc.data()));
+        rankingList.innerHTML = rows.map((entry, i) => `
+          <div class="ranking-row${i < 3 ? ' is-top3' : ''}">
+            <span class="ranking-pos">${i + 1}</span>
+            <span class="ranking-name">${escapeHtml(entry.name || 'なまえなし')}</span>
+            <span class="ranking-score">${entry.score}</span>
+            <span class="ranking-badge">${entry.rank}</span>
+          </div>
+        `).join('');
+      })
+      .catch(() => {
+        rankingList.innerHTML = '<p class="ranking-empty">ランキングを読み込めませんでした</p>';
+      });
   }
 
   function showSaveScorePrompt(score, rank) {
@@ -210,6 +218,8 @@
     saveScoreNameInput.value = '';
     saveScoreNameArea.hidden = true;
     saveScoreYesNo.hidden = false;
+    saveScoreSubmitBtn.disabled = false;
+    saveScoreSubmitBtn.textContent = 'とうろく';
     saveScorePrompt.hidden = false;
   }
 
@@ -409,8 +419,20 @@
   saveScoreNoBtn && saveScoreNoBtn.addEventListener('click', hideSaveScorePrompt);
   saveScoreSubmitBtn && saveScoreSubmitBtn.addEventListener('click', () => {
     const name = saveScoreNameInput.value.trim() || 'なまえなし';
-    saveLeaderboardEntry(name, score, lastRank);
-    hideSaveScorePrompt();
+    saveScoreSubmitBtn.disabled = true;
+    saveScoreSubmitBtn.textContent = 'とうろく中…';
+    saveLeaderboardEntry(name, score, lastRank)
+      .then(() => {
+        hideSaveScorePrompt();
+      })
+      .catch(() => {
+        saveScoreSubmitBtn.textContent = 'しっぱい。もう一度';
+      })
+      .finally(() => {
+        saveScoreSubmitBtn.disabled = false;
+        if (!saveScorePrompt.hidden) return;
+        saveScoreSubmitBtn.textContent = 'とうろく';
+      });
   });
   saveScoreNameInput && saveScoreNameInput.addEventListener('keydown', (e) => {
     if (e.key === 'Enter') saveScoreSubmitBtn.click();
