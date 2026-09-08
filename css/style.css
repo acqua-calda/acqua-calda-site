@@ -148,15 +148,13 @@ img{ max-width:100%; display:block; }
   margin: 0 0 18px;
 }
 .hero-title{
-  font-family: var(--font-display);
-  font-weight: 900;
-  font-size: clamp(48px, 11vw, 128px);
-  line-height: 0.95;
   margin: 0 0 24px;
-  letter-spacing: 0.02em;
-  background: linear-gradient(120deg, var(--white) 20%, var(--cyan) 50%, var(--pink) 80%);
-  -webkit-background-clip: text; background-clip: text; color: transparent;
-  position: relative;
+  line-height: 0;
+}
+.hero-logo-img{
+  display: block; margin: 0 auto;
+  width: min(640px, 85vw);
+  height: auto;
 }
 .hero-copy{ color: var(--fg-dim); font-size: clamp(14px, 1.6vw, 17px); margin-bottom: 40px; }
 .hero-actions{ display:flex; gap: 18px; justify-content:center; flex-wrap: wrap; }
