@@ -49,6 +49,7 @@
   const rankingPanel = document.getElementById('gameRanking');
   const rankingList = document.getElementById('rankingList');
   const rankingBackBtn = document.getElementById('gameRankingBackBtn');
+  const rankingYouEl = document.getElementById('rankingYou');
   const saveScorePrompt = document.getElementById('saveScorePrompt');
   const saveScoreYesNo = document.getElementById('saveScoreYesNo');
   const saveScoreYesBtn = document.getElementById('saveScoreYesBtn');
@@ -181,7 +182,8 @@
     return div.innerHTML;
   }
 
-  function renderRanking() {
+  function renderRanking(highlightId) {
+    rankingYouEl.hidden = true;
     if (!leaderboardDb) {
       rankingList.innerHTML = '<p class="ranking-empty">ランキングを読み込めませんでした</p>';
       return;
@@ -197,19 +199,43 @@
           return;
         }
         const rows = [];
-        snapshot.forEach((doc) => rows.push(doc.data()));
-        rankingList.innerHTML = rows.map((entry, i) => `
-          <div class="ranking-row${i < 3 ? ' is-top3' : ''}">
-            <span class="ranking-pos">${i + 1}</span>
+        snapshot.forEach((doc) => rows.push({ id: doc.id, ...doc.data() }));
+        // ties share the same rank (competition ranking), matching showYourRank()'s math
+        let pos = 1;
+        rankingList.innerHTML = rows.map((entry, i) => {
+          if (i > 0 && rows[i - 1].score > entry.score) pos = i + 1;
+          const isTop3 = pos <= 3;
+          return `
+          <div class="ranking-row${isTop3 ? ' is-top3' : ''}${entry.id === highlightId ? ' is-you' : ''}">
+            <span class="ranking-pos">${pos}</span>
             <span class="ranking-name">${escapeHtml(entry.name || 'なまえなし')}</span>
             <span class="ranking-score">${entry.score}</span>
             <span class="ranking-badge">${entry.rank}</span>
           </div>
-        `).join('');
+        `;
+        }).join('');
+        if (highlightId && rows.some((e) => e.id === highlightId)) {
+          requestAnimationFrame(() => {
+            const el = rankingList.querySelector('.ranking-row.is-you');
+            el && el.scrollIntoView({ block: 'center' });
+          });
+        }
       })
       .catch(() => {
         rankingList.innerHTML = '<p class="ranking-empty">ランキングを読み込めませんでした</p>';
       });
+  }
+
+  function showYourRank(score) {
+    if (!leaderboardDb) return;
+    leaderboardDb.collection(LEADERBOARD_COLLECTION)
+      .where('score', '>', score)
+      .get()
+      .then((snapshot) => {
+        rankingYouEl.textContent = `きみの順位: ${snapshot.size + 1}位`;
+        rankingYouEl.hidden = false;
+      })
+      .catch(() => {});
   }
 
   function showSaveScorePrompt(score, rank) {
@@ -422,8 +448,11 @@
     saveScoreSubmitBtn.disabled = true;
     saveScoreSubmitBtn.textContent = 'とうろく中…';
     saveLeaderboardEntry(name, score, lastRank)
-      .then(() => {
+      .then((docRef) => {
         hideSaveScorePrompt();
+        showPanel('ranking');
+        renderRanking(docRef.id);
+        showYourRank(score);
       })
       .catch(() => {
         saveScoreSubmitBtn.textContent = 'しっぱい。もう一度';
