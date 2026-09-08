@@ -5,7 +5,7 @@
   const BUBBLE_TYPES = [
     { cls: 'bubble-white', points: 100, weight: 55, sizeMin: 44, sizeMax: 80, speedMin: 198, speedMax: 450 },
     { cls: 'bubble-blue', points: 150, weight: 30, sizeMin: 34, sizeMax: 62, speedMin: 266, speedMax: 514 },
-    { cls: 'bubble-purple', points: 300, weight: 15, sizeMin: 26, sizeMax: 48, speedMin: 332, speedMax: 594 },
+    { cls: 'bubble-purple', points: 300, weight: 15, sizeMin: 26, sizeMax: 48, speedMin: 332, speedMax: 594, hitPad: 16 },
   ];
   const TOTAL_WEIGHT = BUBBLE_TYPES.reduce((s, t) => s + t.weight, 0);
   const RANK_THRESHOLDS = [
@@ -276,12 +276,18 @@
     const size = Math.random() * (type.sizeMax - type.sizeMin) + type.sizeMin;
     const x = Math.random() * Math.max(0, rect.width - size);
 
+    // small bubbles (e.g. purple) get an invisible hit-area boost so they're
+    // easier to tap without changing how big they look
+    const hitPad = type.hitPad || 0;
+    const boxSize = size + hitPad * 2;
+
     const el = document.createElement('div');
     el.className = 'bubble ' + type.cls;
-    el.style.width = size + 'px';
-    el.style.height = size + 'px';
-    el.style.left = x + 'px';
-    el.style.top = rect.height + 'px';
+    el.style.width = boxSize + 'px';
+    el.style.height = boxSize + 'px';
+    el.style.left = (x - hitPad) + 'px';
+    el.style.top = (rect.height - hitPad) + 'px';
+    if (hitPad) el.style.backgroundSize = size + 'px';
     field.appendChild(el);
 
     const bubble = {
