@@ -466,6 +466,7 @@ img{ max-width:100%; display:block; }
 .game-title-overlay .btn{ width: 100%; }
 .game-title-actions{ gap: 12px; flex-wrap: nowrap; }
 .game-title-actions .btn{ flex: 1 1 0; width: auto; white-space: nowrap; }
+.game-title-quit{ display:block; width:100%; margin-top: 10px; }
 .game-desc{ color: var(--fg-dim); font-size: 13px; line-height: 2; margin-bottom: 28px; }
 .bubble-legend{ display:inline-flex; align-items:center; gap:6px; margin: 2px 10px; font-size:12px; }
 .legend-dot{ display:inline-block; width:10px; height:10px; border-radius:50%; }

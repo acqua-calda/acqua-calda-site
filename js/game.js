@@ -30,6 +30,7 @@
   const navBtn = document.getElementById('gameNavBtn');
   const closeBtn = document.getElementById('gameClose');
   const closeBtn2 = document.getElementById('gameCloseBtn2');
+  const quitBtn = document.getElementById('gameQuitBtn');
   const startPanel = document.getElementById('gameStart');
   const playPanel = document.getElementById('gamePlay');
   const resultPanel = document.getElementById('gameResult');
@@ -255,6 +256,7 @@
   navBtn && navBtn.addEventListener('click', (e) => { e.preventDefault(); openModal(); });
   closeBtn && closeBtn.addEventListener('click', closeModal);
   closeBtn2 && closeBtn2.addEventListener('click', closeModal);
+  quitBtn && quitBtn.addEventListener('click', closeModal);
   modal.addEventListener('click', (e) => { if (e.target === modal) closeModal(); });
   document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape' && modal.classList.contains('is-open')) closeModal();
