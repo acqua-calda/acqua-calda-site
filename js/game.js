@@ -181,12 +181,16 @@
     bubbles.push(bubble);
   }
 
+  const FINAL_STRETCH_SECONDS = 10;
+  const FINAL_STRETCH_BOOST = 1.3;
+
   function scheduleSpawn() {
     if (!running) return;
     spawnBubble();
     const elapsed = ROUND_SECONDS - timeLeft;
     const baseInterval = Math.max(260, 720 - elapsed * 14);
-    const interval = baseInterval + Math.random() * 220;
+    let interval = baseInterval + Math.random() * 220;
+    if (timeLeft <= FINAL_STRETCH_SECONDS) interval /= FINAL_STRETCH_BOOST;
     spawnTimeoutId = setTimeout(scheduleSpawn, interval);
   }
 
