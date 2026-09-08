@@ -3,9 +3,9 @@
 
   const ROUND_SECONDS = 30;
   const BUBBLE_TYPES = [
-    { cls: 'bubble-white', points: 100, weight: 55, sizeMin: 44, sizeMax: 80, speedMin: 99, speedMax: 225 },
-    { cls: 'bubble-blue', points: 150, weight: 30, sizeMin: 34, sizeMax: 62, speedMin: 133, speedMax: 257 },
-    { cls: 'bubble-purple', points: 300, weight: 15, sizeMin: 26, sizeMax: 48, speedMin: 166, speedMax: 297 },
+    { cls: 'bubble-white', points: 100, weight: 55, sizeMin: 44, sizeMax: 80, speedMin: 198, speedMax: 450 },
+    { cls: 'bubble-blue', points: 150, weight: 30, sizeMin: 34, sizeMax: 62, speedMin: 266, speedMax: 514 },
+    { cls: 'bubble-purple', points: 300, weight: 15, sizeMin: 26, sizeMax: 48, speedMin: 332, speedMax: 594 },
   ];
   const TOTAL_WEIGHT = BUBBLE_TYPES.reduce((s, t) => s + t.weight, 0);
   const RANK_THRESHOLDS = [
