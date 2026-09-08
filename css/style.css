@@ -501,19 +501,16 @@ img{ max-width:100%; display:block; }
 }
 .bubble.is-popped{ opacity: 0; }
 .bubble-white{
-  background: radial-gradient(circle at 35% 28%, rgba(255,255,255,0.95), rgba(255,255,255,0.28) 55%, rgba(255,255,255,0.08) 100%);
-  border: 1px solid rgba(255,255,255,0.6);
-  box-shadow: 0 0 16px rgba(255,255,255,0.35);
+  background: url('../img/white_ball.png') center / contain no-repeat;
+  filter: drop-shadow(0 0 12px rgba(255,255,255,0.35));
 }
 .bubble-blue{
-  background: radial-gradient(circle at 35% 28%, rgba(130,180,255,0.95), rgba(47,123,255,0.65) 55%, rgba(47,123,255,0.28) 100%);
-  border: 1px solid rgba(47,123,255,0.8);
-  box-shadow: 0 0 18px rgba(47,123,255,0.6);
+  background: url('../img/Blue_ball.png') center / contain no-repeat;
+  filter: drop-shadow(0 0 14px rgba(47,123,255,0.55));
 }
 .bubble-purple{
-  background: radial-gradient(circle at 35% 28%, rgba(232,195,255,0.95), rgba(168,85,247,0.45) 55%, rgba(168,85,247,0.15) 100%);
-  border: 1px solid rgba(168,85,247,0.7);
-  box-shadow: 0 0 20px rgba(168,85,247,0.5);
+  background: url('../img/purple_ball.png') center / contain no-repeat;
+  filter: drop-shadow(0 0 16px rgba(168,85,247,0.5));
 }
 .score-pop{
   position: absolute; pointer-events: none;
