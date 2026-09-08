@@ -9,17 +9,16 @@
   ];
   const TOTAL_WEIGHT = BUBBLE_TYPES.reduce((s, t) => s + t.weight, 0);
   const RANK_THRESHOLDS = [
-    { rank: 'S', min: 6000 },
-    { rank: 'A', min: 5000 },
+    { rank: 'S', min: 8000 },
+    { rank: 'A', min: 6000 },
     { rank: 'B', min: 4000 },
-    { rank: 'C', min: 3000 },
+    { rank: 'C', min: 0 },
   ];
   const RESULT_LINES = {
     S: { name: 'OZ', img: 'img/OZ_kawaii.png', line: 'すごい！めっちゃうまいじゃん！' },
     A: { name: 'YUU', img: 'img/YUU_kawaii.png', line: 'おっ、やるじゃん！その調子！' },
     B: { name: 'OZ', img: 'img/OZ_kawaii.png', line: 'なかなかいい感じ！もっといけるよ！' },
     C: { name: 'YUU', img: 'img/YUU_kawaii.png', line: 'まあまあかな。次はがんばろう！' },
-    D: { name: 'OZ', img: 'img/OZ_kawaii.png', line: 'あちゃー…次はリベンジな！' },
   };
   const LEADERBOARD_COLLECTION = 'leaderboard';
   const LEADERBOARD_MAX = 20;
@@ -305,6 +304,7 @@
 
   const FINAL_STRETCH_SECONDS = 10;
   const FINAL_STRETCH_BOOST = 1.3;
+  const SPAWN_RATE_BOOST = 1.2;
 
   function scheduleSpawn() {
     if (!running) return;
@@ -312,6 +312,7 @@
     const elapsed = ROUND_SECONDS - timeLeft;
     const baseInterval = Math.max(260, 720 - elapsed * 14);
     let interval = baseInterval + Math.random() * 220;
+    interval /= SPAWN_RATE_BOOST;
     if (timeLeft <= FINAL_STRETCH_SECONDS) interval /= FINAL_STRETCH_BOOST;
     spawnTimeoutId = setTimeout(scheduleSpawn, interval);
   }
@@ -411,7 +412,7 @@
     if (!running) return;
     stopGame();
     finalScoreEl.textContent = String(score);
-    let rank = 'D';
+    let rank = 'C';
     for (const t of RANK_THRESHOLDS) {
       if (score >= t.min) { rank = t.rank; break; }
     }
