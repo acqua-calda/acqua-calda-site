@@ -14,6 +14,13 @@
     { rank: 'B', min: 4000 },
     { rank: 'C', min: 3000 },
   ];
+  const RESULT_LINES = {
+    S: { name: 'OZ', img: 'img/OZ_kawaii.png', line: 'すごい！めっちゃうまいじゃん！' },
+    A: { name: 'YUU', img: 'img/YUU_kawaii.png', line: 'おっ、やるじゃん！その調子！' },
+    B: { name: 'OZ', img: 'img/OZ_kawaii.png', line: 'なかなかいい感じ！もっといけるよ！' },
+    C: { name: 'YUU', img: 'img/YUU_kawaii.png', line: 'まあまあかな。次はがんばろう！' },
+    D: { name: 'OZ', img: 'img/OZ_kawaii.png', line: 'あちゃー…次はリベンジな！' },
+  };
 
   const modal = document.getElementById('gameModal');
   const navBtn = document.getElementById('gameNavBtn');
@@ -29,6 +36,9 @@
   const timerEl = document.getElementById('gameTimerVal');
   const rankEl = document.getElementById('gameRank');
   const finalScoreEl = document.getElementById('gameFinalScore');
+  const resultCharEl = document.getElementById('gameResultChar');
+  const resultNameEl = document.getElementById('gameResultName');
+  const resultLineEl = document.getElementById('gameResultLine');
   const bgVideo = document.getElementById('gameBgVideo');
 
   if (!modal || !field) return;
@@ -292,6 +302,11 @@
       if (score >= t.min) { rank = t.rank; break; }
     }
     rankEl.textContent = rank;
+    const line = RESULT_LINES[rank];
+    resultCharEl.src = line.img;
+    resultCharEl.alt = line.name;
+    resultNameEl.textContent = line.name;
+    resultLineEl.textContent = line.line;
     showPanel('result');
   }
 

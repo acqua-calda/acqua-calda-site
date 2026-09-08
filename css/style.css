@@ -551,6 +551,35 @@ img{ max-width:100%; display:block; }
 .game-result-score b{ color: var(--fg); font-size: 20px; margin-left: 8px; }
 .game-panel-result .hero-actions{ justify-content:center; }
 
+.result-dialogue{
+  display:flex; align-items:flex-end; justify-content:center;
+  gap: 8px;
+  margin: 18px 0 24px;
+  text-align:left;
+}
+.result-dialogue-char{
+  height: clamp(100px, 26vh, 150px); width:auto; flex-shrink:0;
+  filter: drop-shadow(0 8px 14px rgba(0,0,0,0.45));
+}
+.result-dialogue-box{
+  position: relative;
+  flex: 1 1 auto; min-width: 0;
+  background: linear-gradient(165deg, rgba(7,26,63,0.95), rgba(6,16,36,0.95));
+  border: 1px solid rgba(0,224,255,0.35);
+  border-radius: 14px;
+  padding: 20px 14px 14px;
+  box-shadow: 0 10px 24px rgba(0,0,0,0.4);
+}
+.result-dialogue-name{
+  position: absolute; top: -13px; left: 14px;
+  background: linear-gradient(120deg, var(--cyan), var(--pink));
+  color: #04101f; font-family: var(--font-display); font-weight: 700; font-size: 12px;
+  padding: 4px 14px; border-radius: 999px; margin:0;
+}
+.result-dialogue-text{
+  font-size: 13px; line-height: 1.7; color: var(--fg); margin:0;
+}
+
 @media (max-width: 480px){
   .game-modal{ padding: 0; backdrop-filter: none; }
   .game-modal-inner{
