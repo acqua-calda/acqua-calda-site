@@ -53,6 +53,8 @@
   const saveScoreNameArea = document.getElementById('saveScoreNameArea');
   const saveScoreNameInput = document.getElementById('saveScoreNameInput');
   const saveScoreSubmitBtn = document.getElementById('saveScoreSubmitBtn');
+  const saveScoreSummaryRank = document.getElementById('saveScoreSummaryRank');
+  const saveScoreSummaryScore = document.getElementById('saveScoreSummaryScore');
 
   if (!modal || !field) return;
 
@@ -202,7 +204,9 @@
     `).join('');
   }
 
-  function showSaveScorePrompt() {
+  function showSaveScorePrompt(score, rank) {
+    saveScoreSummaryRank.textContent = rank;
+    saveScoreSummaryScore.textContent = score;
     saveScoreNameInput.value = '';
     saveScoreNameArea.hidden = true;
     saveScoreYesNo.hidden = false;
@@ -383,7 +387,7 @@
     resultNameEl.textContent = line.name;
     resultLineEl.textContent = line.line;
     showPanel('result');
-    showSaveScorePrompt();
+    showSaveScorePrompt(score, rank);
     resultSfx.currentTime = 0;
     resultSfx.play().catch(() => {});
   }

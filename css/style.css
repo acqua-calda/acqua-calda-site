@@ -641,6 +641,17 @@ img{ max-width:100%; display:block; }
   text-align: center;
   box-shadow: 0 12px 30px rgba(0,0,0,0.5);
 }
+.save-score-summary{
+  display:flex; align-items:center; justify-content:center; gap: 12px;
+  margin: 0 0 14px;
+}
+.save-score-summary-rank{
+  font-family: var(--font-fancy); font-weight: 800; font-size: 32px; line-height: 1;
+  background: linear-gradient(120deg, var(--cyan), var(--pink));
+  -webkit-background-clip: text; background-clip: text; color: transparent;
+}
+.save-score-summary-score{ font-family: var(--font-fancy); color: var(--fg-dim); font-size: 13px; }
+.save-score-summary-score b{ color: var(--fg); font-size: 18px; margin-left: 6px; }
 .save-score-question{
   font-size: 14px; line-height: 1.6; color: var(--fg); margin: 0 0 18px;
 }
