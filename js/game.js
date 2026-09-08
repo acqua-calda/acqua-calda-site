@@ -54,6 +54,9 @@
   bgm.loop = true;
   bgm.volume = 0.5;
 
+  const resultSfx = new Audio('audio/result.mp3');
+  resultSfx.volume = 0.6;
+
   const popSoundSrc = 'audio/bubble.mp3';
   let audioCtx = null;
   let popBuffer = null;
@@ -256,6 +259,7 @@
 
   /* ---------- game flow ---------- */
   function startGame() {
+    stopGame();
     initAudio();
     score = 0;
     timeLeft = ROUND_SECONDS;
@@ -284,6 +288,7 @@
   function stopGame() {
     running = false;
     bgm.pause();
+    resultSfx.pause();
     if (rafId) cancelAnimationFrame(rafId);
     if (spawnTimeoutId) clearTimeout(spawnTimeoutId);
     if (tickIntervalId) clearInterval(tickIntervalId);
@@ -308,6 +313,8 @@
     resultNameEl.textContent = line.name;
     resultLineEl.textContent = line.line;
     showPanel('result');
+    resultSfx.currentTime = 0;
+    resultSfx.play().catch(() => {});
   }
 
   playBtn && playBtn.addEventListener('click', startGame);
