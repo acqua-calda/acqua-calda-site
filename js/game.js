@@ -21,6 +21,8 @@
     C: { name: 'YUU', img: 'img/YUU_kawaii.png', line: 'まあまあかな。次はがんばろう！' },
     D: { name: 'OZ', img: 'img/OZ_kawaii.png', line: 'あちゃー…次はリベンジな！' },
   };
+  const LEADERBOARD_KEY = 'acquaBubblePopLeaderboard';
+  const LEADERBOARD_MAX = 20;
 
   const modal = document.getElementById('gameModal');
   const navBtn = document.getElementById('gameNavBtn');
@@ -40,6 +42,17 @@
   const resultNameEl = document.getElementById('gameResultName');
   const resultLineEl = document.getElementById('gameResultLine');
   const bgVideo = document.getElementById('gameBgVideo');
+  const rankingBtn = document.getElementById('gameRankingBtn');
+  const rankingPanel = document.getElementById('gameRanking');
+  const rankingList = document.getElementById('rankingList');
+  const rankingBackBtn = document.getElementById('gameRankingBackBtn');
+  const saveScorePrompt = document.getElementById('saveScorePrompt');
+  const saveScoreYesNo = document.getElementById('saveScoreYesNo');
+  const saveScoreYesBtn = document.getElementById('saveScoreYesBtn');
+  const saveScoreNoBtn = document.getElementById('saveScoreNoBtn');
+  const saveScoreNameArea = document.getElementById('saveScoreNameArea');
+  const saveScoreNameInput = document.getElementById('saveScoreNameInput');
+  const saveScoreSubmitBtn = document.getElementById('saveScoreSubmitBtn');
 
   if (!modal || !field) return;
 
@@ -121,6 +134,7 @@
   let spawnTimeoutId = null;
   let tickIntervalId = null;
   let lastFrameTime = 0;
+  let lastRank = 'D';
 
   /* ---------- modal open/close ---------- */
   function openModal() {
@@ -142,6 +156,61 @@
     startPanel.hidden = name !== 'start';
     playPanel.hidden = name !== 'play';
     resultPanel.hidden = name !== 'result';
+    rankingPanel.hidden = name !== 'ranking';
+  }
+
+  /* ---------- leaderboard ---------- */
+  function loadLeaderboard() {
+    try {
+      const data = JSON.parse(localStorage.getItem(LEADERBOARD_KEY));
+      return Array.isArray(data) ? data : [];
+    } catch {
+      return [];
+    }
+  }
+
+  function saveLeaderboardEntry(name, score, rank) {
+    const list = loadLeaderboard();
+    list.push({ name, score, rank });
+    list.sort((a, b) => b.score - a.score);
+    const trimmed = list.slice(0, LEADERBOARD_MAX);
+    try {
+      localStorage.setItem(LEADERBOARD_KEY, JSON.stringify(trimmed));
+    } catch {}
+    return trimmed;
+  }
+
+  function escapeHtml(str) {
+    const div = document.createElement('div');
+    div.textContent = str;
+    return div.innerHTML;
+  }
+
+  function renderRanking() {
+    const list = loadLeaderboard();
+    if (!list.length) {
+      rankingList.innerHTML = '<p class="ranking-empty">まだ記録がありません</p>';
+      return;
+    }
+    rankingList.innerHTML = list.map((entry, i) => `
+      <div class="ranking-row${i < 3 ? ' is-top3' : ''}">
+        <span class="ranking-pos">${i + 1}</span>
+        <span class="ranking-name">${escapeHtml(entry.name || 'なまえなし')}</span>
+        <span class="ranking-score">${entry.score}</span>
+        <span class="ranking-badge">${entry.rank}</span>
+      </div>
+    `).join('');
+  }
+
+  function showSaveScorePrompt() {
+    saveScoreNameInput.value = '';
+    saveScoreNameArea.hidden = true;
+    saveScoreYesNo.hidden = false;
+    saveScorePrompt.hidden = false;
+  }
+
+  function hideSaveScorePrompt() {
+    saveScorePrompt.hidden = true;
   }
 
   navBtn && navBtn.addEventListener('click', (e) => { e.preventDefault(); openModal(); });
@@ -307,17 +376,40 @@
       if (score >= t.min) { rank = t.rank; break; }
     }
     rankEl.textContent = rank;
+    lastRank = rank;
     const line = RESULT_LINES[rank];
     resultCharEl.src = line.img;
     resultCharEl.alt = line.name;
     resultNameEl.textContent = line.name;
     resultLineEl.textContent = line.line;
     showPanel('result');
+    showSaveScorePrompt();
     resultSfx.currentTime = 0;
     resultSfx.play().catch(() => {});
   }
 
   playBtn && playBtn.addEventListener('click', startGame);
   retryBtn && retryBtn.addEventListener('click', startGame);
+
+  rankingBtn && rankingBtn.addEventListener('click', () => {
+    renderRanking();
+    showPanel('ranking');
+  });
+  rankingBackBtn && rankingBackBtn.addEventListener('click', () => showPanel('start'));
+
+  saveScoreYesBtn && saveScoreYesBtn.addEventListener('click', () => {
+    saveScoreYesNo.hidden = true;
+    saveScoreNameArea.hidden = false;
+    saveScoreNameInput.focus();
+  });
+  saveScoreNoBtn && saveScoreNoBtn.addEventListener('click', hideSaveScorePrompt);
+  saveScoreSubmitBtn && saveScoreSubmitBtn.addEventListener('click', () => {
+    const name = saveScoreNameInput.value.trim() || 'なまえなし';
+    saveLeaderboardEntry(name, score, lastRank);
+    hideSaveScorePrompt();
+  });
+  saveScoreNameInput && saveScoreNameInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') saveScoreSubmitBtn.click();
+  });
 
 })();
