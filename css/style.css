@@ -447,11 +447,18 @@ img{ max-width:100%; display:block; }
 }
 .game-close:hover{ border-color: var(--cyan); color: var(--cyan); }
 
-.game-logo{
-  font-family: var(--font-display); font-weight: 900;
-  font-size: clamp(28px, 6vw, 38px); margin: 4px 0 18px;
-  background: linear-gradient(120deg, var(--white) 20%, var(--cyan) 50%, var(--pink) 80%);
-  -webkit-background-clip: text; background-clip: text; color: transparent;
+.game-title-row{
+  display:flex; align-items:flex-end; justify-content:center;
+  gap: clamp(4px, 2vw, 14px);
+  margin: 4px 0 18px;
+}
+.game-logo-img{
+  width: min(220px, 42vw); height:auto;
+  margin-bottom: clamp(18px, 8vw, 36px);
+}
+.game-title-char{
+  height: clamp(90px, 26vw, 150px); width:auto; flex-shrink:0;
+  filter: drop-shadow(0 8px 14px rgba(0,0,0,0.45));
 }
 .game-desc{ color: var(--fg-dim); font-size: 13px; line-height: 2; margin-bottom: 28px; }
 .bubble-legend{ display:inline-flex; align-items:center; gap:6px; margin: 2px 10px; font-size:12px; }
