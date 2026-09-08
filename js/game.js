@@ -29,8 +29,16 @@
   const timerEl = document.getElementById('gameTimerVal');
   const rankEl = document.getElementById('gameRank');
   const finalScoreEl = document.getElementById('gameFinalScore');
+  const bgVideo = document.getElementById('gameBgVideo');
 
   if (!modal || !field) return;
+
+  function loadBgVideo() {
+    if (!bgVideo || bgVideo.src) return;
+    bgVideo.src = bgVideo.dataset.src;
+    bgVideo.load();
+    bgVideo.play().catch(() => {});
+  }
 
   const bgm = new Audio('audio/game.mp3');
   bgm.loop = true;
@@ -106,6 +114,7 @@
     modal.classList.add('is-open');
     modal.setAttribute('aria-hidden', 'false');
     showPanel('start');
+    loadBgVideo();
     document.dispatchEvent(new CustomEvent('minigame:open'));
   }
 

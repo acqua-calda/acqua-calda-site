@@ -209,7 +209,7 @@
     <div class="game-panel game-panel-play" id="gamePlay" hidden>
       <div class="game-stage">
         <div class="bubble-field" id="bubbleField">
-          <video class="bubble-field-bg" src="video/game_backscreen.mp4" autoplay muted loop playsinline></video>
+          <video class="bubble-field-bg" id="gameBgVideo" data-src="video/game_backscreen.mp4" preload="none" muted loop playsinline></video>
           <div class="game-hud">
             <span class="game-hud-score">SCORE <b id="gameScoreVal">0</b></span>
             <span class="game-hud-timer"><b id="gameTimerVal">30</b>s</span>
@@ -231,6 +231,6 @@
 </div>
 
 <script src="js/script.js?v=8"></script>
-<script src="js/game.js?v=11"></script>
+<script src="js/game.js?v=12"></script>
 </body>
 </html>
