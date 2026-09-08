@@ -9,10 +9,10 @@
   ];
   const TOTAL_WEIGHT = BUBBLE_TYPES.reduce((s, t) => s + t.weight, 0);
   const RANK_THRESHOLDS = [
-    { rank: 'S', min: 5000 },
-    { rank: 'A', min: 3500 },
-    { rank: 'B', min: 2200 },
-    { rank: 'C', min: 1200 },
+    { rank: 'S', min: 6000 },
+    { rank: 'A', min: 5000 },
+    { rank: 'B', min: 4000 },
+    { rank: 'C', min: 3000 },
   ];
 
   const modal = document.getElementById('gameModal');
