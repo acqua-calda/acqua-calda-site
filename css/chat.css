@@ -333,11 +333,45 @@
   .chat-hint{ display: none; }
   .chat-stage-wrap{ flex: 1; min-height: 0; }
   .chat-stage{ aspect-ratio: unset; width: 100%; height: 100%; border-radius: 10px; }
-  .chat-log{ max-height: 46px; }
   .chat-volume{
     left: max(8px, env(safe-area-inset-left));
     bottom: max(8px, env(safe-area-inset-bottom));
     padding: 5px 10px;
   }
   .chat-volume input[type="range"]{ width: 60px; }
+
+  /* d-pad moves up top-right so it doesn't collide with the floating log/input panel below */
+  .chat-dpad{
+    top: max(8px, env(safe-area-inset-top));
+    right: max(8px, env(safe-area-inset-right));
+    bottom: auto;
+  }
+
+  /* log + message input become one small translucent panel floating bottom-right over the room */
+  .chat-log, .chat-input-row{
+    position: fixed;
+    right: max(8px, env(safe-area-inset-right));
+    width: min(240px, 46vw);
+    z-index: 20;
+    background: rgba(6,20,52,0.55);
+    backdrop-filter: blur(5px);
+    border: 1px solid var(--border);
+  }
+  .chat-log{
+    bottom: 46px;
+    max-height: 80px;
+    border-radius: 10px;
+    padding: 6px 8px;
+    gap: 2px;
+  }
+  .chat-log-row{ font-size: 11px; }
+  .chat-input-row{
+    bottom: max(8px, env(safe-area-inset-bottom));
+    border-radius: 10px;
+    padding: 4px;
+    gap: 4px;
+  }
+  .chat-avatar-btn{ width: 32px; height: 32px; }
+  .chat-input-row input[type="text"]{ padding: 6px 8px; font-size: 12px; }
+  .chat-send-btn{ padding: 6px 10px; font-size: 12px; }
 }
