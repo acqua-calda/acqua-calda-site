@@ -36,7 +36,6 @@
   const leaveBtn = document.getElementById('chatLeaveBtn');
   const fullscreenBtn = document.getElementById('chatFullscreenBtn');
   const dpad = document.getElementById('chatDpad');
-  const bgCanvas = document.getElementById('chatStageBg');
   const volumeWrap = document.getElementById('chatVolume');
   const volumeSlider = document.getElementById('chatVolumeSlider');
   const volumeIcon = document.getElementById('chatVolumeIcon');
@@ -128,64 +127,6 @@
     bgm.currentTime = 0;
     if (volumeWrap) volumeWrap.hidden = true;
   }
-
-  /* ---------- ambient room background ---------- */
-  (function initStageBg() {
-    if (!bgCanvas || !bgCanvas.getContext) return;
-    const ctx = bgCanvas.getContext('2d');
-    const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
-    let steam = [];
-    let dpr = Math.min(window.devicePixelRatio || 1, 2);
-    let rafId = null;
-
-    const resize = () => {
-      dpr = Math.min(window.devicePixelRatio || 1, 2);
-      const w = stage.clientWidth, h = stage.clientHeight;
-      bgCanvas.width = w * dpr;
-      bgCanvas.height = h * dpr;
-    };
-    const makeWisp = (initial) => ({
-      x: Math.random() * stage.clientWidth,
-      y: initial ? Math.random() * stage.clientHeight : stage.clientHeight + 20,
-      r: Math.random() * 40 + 20,
-      speed: Math.random() * 0.25 + 0.08,
-      alpha: Math.random() * 0.05 + 0.03,
-      wobble: Math.random() * Math.PI * 2,
-      wobbleSpeed: Math.random() * 0.012 + 0.004,
-    });
-    const createWisps = () => {
-      const count = Math.min(14, Math.round((stage.clientWidth * stage.clientHeight) / 22000));
-      steam = Array.from({ length: count }, () => makeWisp(true));
-    };
-    const draw = () => {
-      const w = stage.clientWidth, h = stage.clientHeight;
-      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-      ctx.clearRect(0, 0, w, h);
-      // floor line
-      ctx.fillStyle = 'rgba(0,224,255,0.05)';
-      ctx.fillRect(0, h * 0.82, w, h * 0.18);
-      steam.forEach(s => {
-        if (!reduceMotion) {
-          s.y -= s.speed;
-          s.wobble += s.wobbleSpeed;
-          if (s.y < -s.r) Object.assign(s, makeWisp(false));
-        }
-        const x = s.x + Math.sin(s.wobble) * 14;
-        const grad = ctx.createRadialGradient(x, s.y, 0, x, s.y, s.r);
-        grad.addColorStop(0, `rgba(220,240,255,${s.alpha})`);
-        grad.addColorStop(1, 'rgba(220,240,255,0)');
-        ctx.fillStyle = grad;
-        ctx.beginPath();
-        ctx.arc(x, s.y, s.r, 0, Math.PI * 2);
-        ctx.fill();
-      });
-      if (!reduceMotion) rafId = requestAnimationFrame(draw);
-    };
-    resize();
-    createWisps();
-    window.addEventListener('resize', () => { resize(); createWisps(); }, { passive: true });
-    draw();
-  })();
 
   /* ---------- entry overlay ---------- */
   function renderAvatarPicker(selectedId) {
