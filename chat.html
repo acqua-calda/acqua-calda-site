@@ -58,7 +58,7 @@
 
     <form class="chat-input-row" id="chatInputForm">
       <button type="button" class="chat-avatar-btn" id="chatMyAvatarBtn" title="なまえ・アバターを変更"><img id="chatMyAvatarImg" src="" alt=""></button>
-      <input type="text" id="chatInputText" maxlength="200" placeholder="メッセージを入力してEnter..." autocomplete="off">
+      <input type="text" id="chatInputText" maxlength="200" placeholder="メッセージを入力してEnter..." autocomplete="off" enterkeyhint="send">
       <button type="submit" class="btn btn-primary chat-send-btn">送信</button>
     </form>
 
@@ -102,6 +102,6 @@
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-database-compat.js"></script>
 <script src="js/firebase-config.js?v=2"></script>
-<script src="js/chat.js?v=8"></script>
+<script src="js/chat.js?v=9"></script>
 </body>
 </html>

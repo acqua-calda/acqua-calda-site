@@ -359,6 +359,7 @@
     lastMessageSentAt = now;
     markActivity();
     inputText.value = '';
+    inputText.blur(); // dismiss the on-screen keyboard so mobile users see the room again right away
 
     presenceRef.update({ message: text, messageAt: firebase.database.ServerValue.TIMESTAMP });
     if (myEl) showBubble(myEl, text);
