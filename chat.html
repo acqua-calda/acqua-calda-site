@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ACQUA CHAT | Acqua Calda Official Site</title>
+<meta name="description" content="Acqua Calda(アクア・カルダ) ファン交流用のリアルタイムアバターチャット">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=Baloo+2:wght@600;700;800&family=Noto+Sans+JP:wght@300;400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css?v=25">
+<link rel="stylesheet" href="css/chat.css?v=3">
+</head>
+<body>
+
+<canvas class="bg-particles" id="bgParticles"></canvas>
+<canvas class="bg-bubbles" id="bgBubbles"></canvas>
+<div class="noise-overlay"></div>
+<div class="cursor-glow" id="cursorGlow"></div>
+
+<!-- ===== HEADER ===== -->
+<header class="site-header" id="siteHeader">
+  <a href="index.html#top" class="brand">ACQUA<span>CALDA</span></a>
+  <nav class="main-nav" id="mainNav">
+    <a href="index.html#about">ABOUT</a>
+    <a href="index.html#members">MEMBERS</a>
+    <a href="index.html#discography">DISCOGRAPHY</a>
+    <a href="index.html#live">LIVE</a>
+    <a href="index.html#contact">CONTACT</a>
+    <a href="chat.html" class="active">CHAT</a>
+  </nav>
+  <button class="nav-toggle" id="navToggle" aria-label="メニューを開く" aria-expanded="false">
+    <span></span><span></span><span></span>
+  </button>
+</header>
+
+<main class="chat-page">
+  <div class="chat-wrap">
+
+    <div class="chat-header-row">
+      <h1 class="chat-title">ACQUA CHAT</h1>
+      <div class="chat-header-right">
+        <div class="chat-online"><span class="dot-live"></span><span id="chatOnlineCount">0</span>人がおしゃべり中</div>
+        <button type="button" class="chat-leave-btn" id="chatLeaveBtn" hidden>退室する</button>
+      </div>
+    </div>
+
+    <div class="chat-stage-wrap">
+      <div class="chat-stage" id="chatStage">
+        <canvas class="chat-stage-bg" id="chatStageBg"></canvas>
+      </div>
+      <div class="chat-dpad" id="chatDpad">
+        <button type="button" data-dir="up" aria-label="上へ移動">▲</button>
+        <button type="button" data-dir="left" aria-label="左へ移動">◀</button>
+        <button type="button" data-dir="right" aria-label="右へ移動">▶</button>
+        <button type="button" data-dir="down" aria-label="下へ移動">▼</button>
+      </div>
+    </div>
+
+    <form class="chat-input-row" id="chatInputForm">
+      <button type="button" class="chat-avatar-btn" id="chatMyAvatarBtn" title="なまえ・アバターを変更"><img id="chatMyAvatarImg" src="" alt=""></button>
+      <input type="text" id="chatInputText" maxlength="200" placeholder="メッセージを入力してEnter..." autocomplete="off">
+      <button type="submit" class="btn btn-primary chat-send-btn">送信</button>
+    </form>
+
+    <div class="chat-log" id="chatLog" aria-live="polite"></div>
+
+    <p class="chat-hint">矢印キー / WASD で移動、Enterで発言（誰でも見られる公開チャットです。個人情報の書き込みには注意してね）</p>
+  </div>
+
+  <!-- ===== ENTRY OVERLAY ===== -->
+  <div class="chat-entry" id="chatEntry" hidden>
+    <div class="chat-entry-card">
+      <h2>ACQUA CHATに入る</h2>
+      <p>なまえとアバターを選んでね</p>
+      <input type="text" id="entryNameInput" maxlength="10" placeholder="なまえ（10文字まで）">
+      <div class="chat-avatar-picker" id="entryAvatarPicker"></div>
+      <button class="btn btn-primary" id="entryEnterBtn">はいる</button>
+      <p class="chat-entry-note">※誰でも見られる公開チャットです。個人情報は書き込まないでね。</p>
+    </div>
+  </div>
+</main>
+
+<footer class="site-footer">
+  <p>&copy; 2026 Acqua Calda. All rights reserved.</p>
+  <p class="footer-note">This is a dummy/sample site structure.</p>
+</footer>
+
+<script src="js/script.js?v=8"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-database-compat.js"></script>
+<script src="js/firebase-config.js?v=2"></script>
+<script src="js/chat.js?v=3"></script>
+</body>
+</html>
