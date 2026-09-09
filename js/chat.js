@@ -393,10 +393,27 @@
         }
       }
     }
+
+    // Smoothly chase each remote avatar's latest known network position
+    // instead of snapping to it -- see the comment above updateRemoteAvatar().
+    const remoteLerp = Math.min(1, REMOTE_CATCHUP_RATE * dt);
+    remoteAvatars.forEach((entry) => {
+      entry.curX += (entry.targetX - entry.curX) * remoteLerp;
+      entry.curY += (entry.targetY - entry.curY) * remoteLerp;
+      positionAvatarEl(entry.el, entry.curX, entry.curY);
+      setAvatarFacing(entry.el, entry.targetFacing);
+    });
+
     requestAnimationFrame(loop);
   }
 
   /* ---------- remote presence sync ---------- */
+  // Remote positions only arrive over the network every POS_SEND_MS (120ms),
+  // so snapping straight to each new (x,y) makes other people's avatars look
+  // stepped/choppy next to our own locally-simulated, every-frame movement.
+  // Instead we keep a target (latest known network position) and smoothly
+  // chase it every animation frame -- see the interpolation step in loop().
+  const REMOTE_CATCHUP_RATE = 18; // higher = snappier but jerkier, lower = smoother but laggier
   function updateRemoteAvatar(uid, data) {
     const entry = remoteAvatars.get(uid);
     if (!entry || !data) return;
@@ -404,8 +421,21 @@
     const img = entry.el.querySelector('.chat-avatar-img');
     if (img.getAttribute('src') !== a.src) img.src = a.src;
     entry.el.querySelector('.chat-avatar-name').textContent = data.name || '';
-    positionAvatarEl(entry.el, data.x || 0, data.y || 0);
-    setAvatarFacing(entry.el, data.facing || 'right');
+
+    const newX = data.x || 0;
+    const newY = data.y || 0;
+    const moved = Math.abs(newX - entry.targetX) > 0.5 || Math.abs(newY - entry.targetY) > 0.5;
+    entry.targetX = newX;
+    entry.targetY = newY;
+    entry.targetFacing = data.facing || 'right';
+    if (moved) {
+      // Sender only pushes updates while actually moving, so if no fresher
+      // position shows up soon, assume they've stopped and drop the bob animation.
+      entry.el.classList.add('is-walking');
+      clearTimeout(entry.walkTimer);
+      entry.walkTimer = setTimeout(() => entry.el.classList.remove('is-walking'), POS_SEND_MS * 2);
+    }
+
     // Only (re)show the bubble/pon sound when this is actually a new message --
     // otherwise every unrelated presence update (movement, etc.) within the
     // 5s bubble window re-triggers it as long as messageAt is still "recent".
@@ -421,8 +451,18 @@
     presenceRoot.on('child_added', (snap) => {
       const uid = snap.key;
       if (uid === myUid) return;
-      remoteAvatars.set(uid, { el: createAvatarEl(false) });
-      updateRemoteAvatar(uid, snap.val());
+      const data = snap.val() || {};
+      const startX = data.x || WORLD_W / 2;
+      const startY = data.y || WORLD_H / 2;
+      const el = createAvatarEl(false);
+      positionAvatarEl(el, startX, startY);
+      setAvatarFacing(el, data.facing || 'right');
+      remoteAvatars.set(uid, {
+        el, curX: startX, curY: startY,
+        targetX: startX, targetY: startY, targetFacing: data.facing || 'right',
+        lastMessageAt: null, walkTimer: null,
+      });
+      updateRemoteAvatar(uid, data);
     });
     presenceRoot.on('child_changed', (snap) => {
       if (snap.key === myUid) return;
