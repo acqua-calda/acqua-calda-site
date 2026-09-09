@@ -26,6 +26,7 @@
     { id: 'male', label: '男性' },
   ];
   const ADMIN_STORAGE_KEY = 'acquaHouseAdmin';
+  const ADMIN_DURATION_MS = 24 * 60 * 60 * 1000; // must match js/script.js's ACCESS_KEY_DURATION_MS
   const WORLD_W = 900;
   const WORLD_H = 480;
   const AVATAR_W = 81;   // world units, footprint used for movement clamping (matches the 9% x 209:332 CSS box)
@@ -91,7 +92,14 @@
   }
   function clamp(v, min, max) { return Math.max(min, Math.min(max, v)); }
   function isAdminUnlocked() {
-    try { return localStorage.getItem(ADMIN_STORAGE_KEY) === 'true'; } catch { return false; }
+    try {
+      const unlockedAt = Number(localStorage.getItem(ADMIN_STORAGE_KEY));
+      if (!unlockedAt || Date.now() - unlockedAt > ADMIN_DURATION_MS) {
+        localStorage.removeItem(ADMIN_STORAGE_KEY);
+        return false;
+      }
+      return true;
+    } catch { return false; }
   }
   function publicAvatarsByGender(genderId) {
     return AVATARS.filter(a => !a.restricted && a.gender === genderId);

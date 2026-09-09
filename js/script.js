@@ -24,22 +24,33 @@
   // from picking OZ/YUU in ACQUA HOUSE, not a real security boundary.
   const ACCESS_KEY_STORAGE = 'acquaHouseAdmin';
   const ACCESS_KEY_PASSWORD = '0905';
+  const ACCESS_KEY_DURATION_MS = 24 * 60 * 60 * 1000; // auto-expires 24h after unlock
+
+  function isAdminUnlocked() {
+    try {
+      const unlockedAt = Number(localStorage.getItem(ACCESS_KEY_STORAGE));
+      if (!unlockedAt || Date.now() - unlockedAt > ACCESS_KEY_DURATION_MS) {
+        localStorage.removeItem(ACCESS_KEY_STORAGE);
+        return false;
+      }
+      return true;
+    } catch { return false; }
+  }
+
   const accessKeyNavBtn = document.getElementById('accessKeyNavBtn');
   if (accessKeyNavBtn) {
     accessKeyNavBtn.addEventListener('click', (e) => {
       e.preventDefault();
-      let unlocked = false;
-      try { unlocked = localStorage.getItem(ACCESS_KEY_STORAGE) === 'true'; } catch { /* ignore */ }
-      if (unlocked) {
-        alert('すでに管理人として認識されています。ACQUA HOUSEでOZ・YUUが選べます。');
+      if (isAdminUnlocked()) {
+        alert('すでに管理人として認識されています（あと24時間以内）。ACQUA HOUSEでOZ・YUUが選べます。');
         return;
       }
       let input;
       try { input = window.prompt('管理人アクセスキーを入力してください'); } catch { return; }
       if (input === null) return;
       if (input === ACCESS_KEY_PASSWORD) {
-        try { localStorage.setItem(ACCESS_KEY_STORAGE, 'true'); } catch { /* ignore */ }
-        alert('認証しました。ACQUA HOUSEでOZ・YUUが選べるようになりました。');
+        try { localStorage.setItem(ACCESS_KEY_STORAGE, String(Date.now())); } catch { /* ignore */ }
+        alert('認証しました。24時間、ACQUA HOUSEでOZ・YUUが選べるようになります。');
       } else {
         alert('アクセスキーが違います。');
       }
