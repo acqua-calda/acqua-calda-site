@@ -28,6 +28,11 @@ body{ min-height: calc(100dvh + 1px); overflow-x: hidden; }
   user-select: text;
   -webkit-touch-callout: default;
 }
+.chat-page button{
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
 
 .chat-wrap{
   position: absolute;
