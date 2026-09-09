@@ -399,7 +399,12 @@
     entry.el.querySelector('.chat-avatar-name').textContent = data.name || '';
     positionAvatarEl(entry.el, data.x || 0, data.y || 0);
     setAvatarFacing(entry.el, data.facing || 'right');
-    if (data.message && data.messageAt && Date.now() - data.messageAt < BUBBLE_MS) {
+    // Only (re)show the bubble/pon sound when this is actually a new message --
+    // otherwise every unrelated presence update (movement, etc.) within the
+    // 5s bubble window re-triggers it as long as messageAt is still "recent".
+    if (data.message && data.messageAt && data.messageAt !== entry.lastMessageAt
+        && Date.now() - data.messageAt < BUBBLE_MS) {
+      entry.lastMessageAt = data.messageAt;
       showBubble(entry.el, data.message);
     }
   }
