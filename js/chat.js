@@ -449,8 +449,35 @@
     while (logEl.children.length > LOG_LIMIT) logEl.removeChild(logEl.firstChild);
     logEl.scrollTop = logEl.scrollHeight;
   }
+  let logQuery = null;
+  let logCallback = null;
+  let logAttachToken = 0;
+  function getServerNow() {
+    // Date.now() alone can't be trusted here -- if the client clock is even
+    // a little behind the server, "new" messages sent right after we join
+    // would still land after our startAt cutoff and leak through.
+    return db.ref('.info/serverTimeOffset').once('value')
+      .then(snap => Date.now() + (snap.val() || 0))
+      .catch(() => Date.now());
+  }
   function attachLogListener() {
-    db.ref('log').limitToLast(LOG_LIMIT).on('child_added', (snap) => appendLogLine(snap.val()));
+    // Only messages sent from this moment on -- leaving/re-entering (or a
+    // fresh visit) should never show a log full of stuff said before you
+    // showed up.
+    const token = ++logAttachToken;
+    getServerNow().then(startTime => {
+      if (token !== logAttachToken) return; // left again before this resolved
+      logQuery = db.ref('log').orderByChild('createdAt').startAt(startTime);
+      logCallback = (snap) => appendLogLine(snap.val());
+      logQuery.on('child_added', logCallback);
+    });
+  }
+  function detachLogListener() {
+    logAttachToken++; // invalidate any attach still waiting on getServerNow()
+    if (logQuery && logCallback) logQuery.off('child_added', logCallback);
+    logQuery = null;
+    logCallback = null;
+    logEl.innerHTML = '';
   }
 
   /* ---------- sending messages ---------- */
@@ -502,21 +529,26 @@
 
   /* ---------- leave room ---------- */
   function clearMyPresence() {
+    let removed = Promise.resolve();
     if (presenceRef) {
       presenceRef.onDisconnect().cancel();
-      presenceRef.remove().catch(() => {});
+      removed = presenceRef.remove().catch(() => {});
       presenceRef = null;
     }
     if (myEl) { myEl.remove(); myEl = null; }
     stopIdleWatch();
     if (leaveBtn) leaveBtn.hidden = true;
     stopBgm();
+    detachLogListener();
+    return removed; // let callers wait for this before navigating away
   }
 
   if (leaveBtn) {
     leaveBtn.addEventListener('click', () => {
-      clearMyPresence();
-      window.location.href = 'index.html';
+      // Wait for the presence delete to actually reach the server -- firing
+      // off navigation right away can abort the in-flight request and leave
+      // a ghost avatar behind.
+      clearMyPresence().then(() => { window.location.href = 'index.html'; });
     });
   }
 
@@ -559,8 +591,8 @@
       if (!listenersAttached) {
         listenersAttached = true;
         attachPresenceListeners();
-        attachLogListener();
       }
+      attachLogListener(); // fresh each entry so old messages never show up
       if (!loopStarted) { loopStarted = true; requestAnimationFrame(loop); }
 
       markActivity();
