@@ -1,6 +1,14 @@
 (() => {
   'use strict';
 
+  // Nudge a 1px scroll so mobile Safari collapses its address bar (the page
+  // has 1px of extra scroll room reserved for exactly this in chat.css).
+  // The fixed-position room covers the screen regardless of scroll offset.
+  function collapseAddressBar() { window.scrollTo(0, 1); }
+  collapseAddressBar();
+  window.addEventListener('load', collapseAddressBar);
+  window.addEventListener('orientationchange', () => setTimeout(collapseAddressBar, 300));
+
   const AVATARS = [
     { id: 'oz', name: 'OZ', src: 'img/OZ_kawaii.png' },
     { id: 'yuu', name: 'YUU', src: 'img/YUU_kawaii.png' },

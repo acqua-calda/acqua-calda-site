@@ -9,7 +9,11 @@
 
 .site-header, .site-footer{ display: none; }
 
-html, body{ height: 100%; overflow: hidden; }
+html{ height: 100%; }
+/* 1px taller than the viewport on purpose: lets JS nudge a 1px scroll on
+   load, which is what makes mobile Safari collapse its address bar. The
+   fixed .chat-page below still covers the screen either way. */
+body{ min-height: calc(100dvh + 1px); overflow-x: hidden; }
 
 .chat-page{
   position: fixed;
