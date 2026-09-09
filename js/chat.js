@@ -389,7 +389,7 @@
     idleIntervalId = setInterval(() => {
       if (!presenceRef) return;
       if (Date.now() - lastActivityAt > IDLE_LIMIT_MS) {
-        leaveRoom();
+        clearMyPresence();
         showNotice('1時間操作がなかったため自動的に退室しました。');
         return;
       }
@@ -401,7 +401,7 @@
   }
 
   /* ---------- leave room ---------- */
-  function leaveRoom() {
+  function clearMyPresence() {
     if (presenceRef) {
       presenceRef.onDisconnect().cancel();
       presenceRef.remove().catch(() => {});
@@ -410,10 +410,14 @@
     if (myEl) { myEl.remove(); myEl = null; }
     stopIdleWatch();
     if (leaveBtn) leaveBtn.hidden = true;
-    openEntry();
   }
 
-  if (leaveBtn) leaveBtn.addEventListener('click', leaveRoom);
+  if (leaveBtn) {
+    leaveBtn.addEventListener('click', () => {
+      clearMyPresence();
+      window.location.href = 'index.html';
+    });
+  }
 
   /* ---------- room entry ---------- */
   function enterRoom() {
