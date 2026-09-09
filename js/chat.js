@@ -10,15 +10,20 @@
   window.addEventListener('orientationchange', () => setTimeout(collapseAddressBar, 300));
 
   const AVATARS = [
-    { id: 'a', name: 'A', src: 'img/A.png' },
-    { id: 'b', name: 'B', src: 'img/B.png' },
-    { id: 'c', name: 'C', src: 'img/C.png' },
-    { id: 'd', name: 'D', src: 'img/D.png' },
-    { id: 'e', name: 'E', src: 'img/E.png' },
-    { id: 'f', name: 'F', src: 'img/F.png' },
-    { id: 'g', name: 'G', src: 'img/G.png' },
+    { id: 'a', name: 'A', src: 'img/A.png', gender: 'male' },
+    { id: 'b', name: 'B', src: 'img/B.png', gender: 'male' },
+    { id: 'c', name: 'C', src: 'img/C.png', gender: 'male' },
+    { id: 'd', name: 'D', src: 'img/D.png', gender: 'male' },
+    { id: 'e', name: 'E', src: 'img/E.png', gender: 'male' },
+    { id: 'f', name: 'F', src: 'img/F.png', gender: 'male' },
+    { id: 'g', name: 'G', src: 'img/G.png', gender: 'male' },
     { id: 'oz', name: 'OZ', src: 'img/OZ_kawaii.png', restricted: true },
     { id: 'yuu', name: 'YUU', src: 'img/YUU_kawaii.png', restricted: true },
+  ];
+  // Gender categories for the picker's tab buttons. Add more entries here
+  // (and tag avatars with the matching `gender`) once other genders have art.
+  const GENDERS = [
+    { id: 'male', label: '男性' },
   ];
   const ADMIN_STORAGE_KEY = 'acquaHouseAdmin';
   const WORLD_W = 900;
@@ -41,7 +46,9 @@
   const stage = document.getElementById('chatStage');
   const entryOverlay = document.getElementById('chatEntry');
   const entryNameInput = document.getElementById('entryNameInput');
+  const entryGenderTabs = document.getElementById('entryGenderTabs');
   const entryAvatarPicker = document.getElementById('entryAvatarPicker');
+  const entryRestrictedPicker = document.getElementById('entryRestrictedPicker');
   const entryEnterBtn = document.getElementById('entryEnterBtn');
   const inputForm = document.getElementById('chatInputForm');
   const inputText = document.getElementById('chatInputText');
@@ -86,9 +93,11 @@
   function isAdminUnlocked() {
     try { return localStorage.getItem(ADMIN_STORAGE_KEY) === 'true'; } catch { return false; }
   }
-  function availableAvatars() {
-    const unlocked = isAdminUnlocked();
-    return AVATARS.filter(a => !a.restricted || unlocked);
+  function publicAvatarsByGender(genderId) {
+    return AVATARS.filter(a => !a.restricted && a.gender === genderId);
+  }
+  function restrictedAvatars() {
+    return isAdminUnlocked() ? AVATARS.filter(a => a.restricted) : [];
   }
 
   let profile = loadProfile();
@@ -152,23 +161,66 @@
   }
 
   /* ---------- entry overlay ---------- */
-  function renderAvatarPicker(selectedId) {
-    entryAvatarPicker.innerHTML = '';
-    const visible = availableAvatars();
-    if (!visible.some(a => a.id === selectedId)) selectedId = visible[0].id;
-    visible.forEach(a => {
+  let selectedAvatarId = AVATARS[0].id;
+  let selectedGenderId = GENDERS[0].id;
+
+  function selectAvatar(id) {
+    selectedAvatarId = id;
+    entryAvatarPicker.querySelectorAll('.chat-avatar-option').forEach(b => b.classList.toggle('is-selected', b.dataset.id === id));
+    entryRestrictedPicker.querySelectorAll('.chat-avatar-option').forEach(b => b.classList.toggle('is-selected', b.dataset.id === id));
+  }
+
+  function renderAvatarGrid(container, avatars) {
+    container.innerHTML = '';
+    avatars.forEach(a => {
       const btn = document.createElement('button');
       btn.type = 'button';
-      btn.className = 'chat-avatar-option' + (a.id === selectedId ? ' is-selected' : '');
+      btn.dataset.id = a.id;
+      btn.className = 'chat-avatar-option' + (a.id === selectedAvatarId ? ' is-selected' : '');
       btn.innerHTML = `<img src="${a.src}" alt="${a.name}"><span>${a.name}</span>`;
-      btn.addEventListener('click', () => {
-        entryAvatarPicker.querySelectorAll('.chat-avatar-option').forEach(b => b.classList.remove('is-selected'));
-        btn.classList.add('is-selected');
-        entryAvatarPicker.dataset.selected = a.id;
-      });
-      entryAvatarPicker.appendChild(btn);
+      btn.addEventListener('click', () => selectAvatar(a.id));
+      container.appendChild(btn);
     });
-    entryAvatarPicker.dataset.selected = selectedId;
+  }
+
+  function renderGenderTabs() {
+    entryGenderTabs.innerHTML = '';
+    GENDERS.forEach(g => {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'chat-gender-tab' + (g.id === selectedGenderId ? ' is-selected' : '');
+      btn.textContent = g.label;
+      btn.addEventListener('click', () => {
+        if (selectedGenderId === g.id) return;
+        selectedGenderId = g.id;
+        renderGenderTabs();
+        const genderAvatars = publicAvatarsByGender(selectedGenderId);
+        if (!genderAvatars.some(a => a.id === selectedAvatarId)) selectedAvatarId = genderAvatars[0].id;
+        renderAvatarGrid(entryAvatarPicker, genderAvatars);
+        selectAvatar(selectedAvatarId);
+      });
+      entryGenderTabs.appendChild(btn);
+    });
+  }
+
+  function renderAvatarPicker(preferredId) {
+    const restricted = restrictedAvatars();
+    const isRestrictedPreferred = restricted.some(a => a.id === preferredId);
+
+    if (isRestrictedPreferred) {
+      selectedAvatarId = preferredId;
+    } else {
+      const genderMatch = AVATARS.find(a => a.id === preferredId && !a.restricted);
+      selectedGenderId = genderMatch ? genderMatch.gender : GENDERS[0].id;
+      const genderAvatars = publicAvatarsByGender(selectedGenderId);
+      selectedAvatarId = genderMatch ? preferredId : genderAvatars[0].id;
+    }
+
+    renderGenderTabs();
+    renderAvatarGrid(entryAvatarPicker, publicAvatarsByGender(selectedGenderId));
+    entryRestrictedPicker.hidden = restricted.length === 0;
+    renderAvatarGrid(entryRestrictedPicker, restricted);
+    selectAvatar(selectedAvatarId);
   }
 
   function openEntry() {
@@ -203,7 +255,7 @@
 
   entryEnterBtn.addEventListener('click', () => {
     const name = entryNameInput.value.trim().slice(0, NAME_MAX) || 'なまえ未設定';
-    const avatarId = entryAvatarPicker.dataset.selected || AVATARS[0].id;
+    const avatarId = selectedAvatarId || AVATARS[0].id;
     profile = { name, avatar: avatarId };
     saveProfile(profile);
     closeEntry();
