@@ -187,8 +187,8 @@ html, body{ height: 100%; overflow: hidden; }
 /* ---------- d-pad (touch movement) ---------- */
 .chat-dpad{
   position: absolute;
-  right: max(16px, env(safe-area-inset-right));
-  top: max(70px, env(safe-area-inset-top) + 60px);
+  left: max(16px, env(safe-area-inset-left));
+  bottom: max(16px, env(safe-area-inset-bottom));
   display: grid;
   grid-template-columns: repeat(3, 34px);
   grid-template-rows: repeat(2, 34px);
@@ -261,8 +261,8 @@ html, body{ height: 100%; overflow: hidden; }
 /* ---------- BGM volume ---------- */
 .chat-volume{
   position: fixed;
-  left: max(14px, env(safe-area-inset-left));
-  bottom: max(14px, env(safe-area-inset-bottom));
+  right: max(16px, env(safe-area-inset-right));
+  top: max(70px, env(safe-area-inset-top) + 60px);
   z-index: 150;
   display: flex;
   align-items: center;
@@ -353,7 +353,8 @@ html, body{ height: 100%; overflow: hidden; }
 @media (max-height: 420px){
   .chat-header-row{ padding: 10px 14px; }
   .chat-hint{ display: none; }
-  .chat-dpad{ top: max(56px, env(safe-area-inset-top) + 48px); transform: scale(0.9); }
+  .chat-dpad{ transform: scale(0.9); }
+  .chat-volume{ top: max(56px, env(safe-area-inset-top) + 48px); }
   .chat-log{ max-height: 90px; }
   .chat-log, .chat-input-row{ width: min(230px, 60vw); }
 }
