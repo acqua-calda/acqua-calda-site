@@ -1,33 +1,43 @@
 /* ==========================================================
-   Acqua Calda - ACQUA CHAT (realtime avatar chat) page styles
+   Acqua Calda - ACQUA HOUSE (realtime avatar chat) page styles
+
+   The whole page IS the room: aqua_House_screen.png fills the
+   entire viewport and every control (header bar, d-pad, log,
+   input, volume) floats on top of it as a translucent overlay.
+   The site's own header/footer are hidden on this page entirely.
    ========================================================== */
 
+.site-header, .site-footer{ display: none; }
+
+html, body{ height: 100%; overflow: hidden; }
+
 .chat-page{
-  min-height: 100vh;
-  padding: calc(var(--header-h) + 32px) clamp(16px, 4vw, 40px) 60px;
-  display: flex;
-  justify-content: center;
+  position: fixed;
+  inset: 0;
 }
 
 .chat-wrap{
-  width: 100%;
-  max-width: 960px;
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
+  position: absolute;
+  inset: 0;
 }
 
+/* ---------- top bar (title / online count / leave / fullscreen) ---------- */
 .chat-header-row{
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  z-index: 30;
   display: flex;
-  align-items: baseline;
-  justify-content: space-between;
+  align-items: center;
   flex-wrap: wrap;
-  gap: 8px;
+  justify-content: space-between;
+  gap: 6px 12px;
+  padding: 16px 20px;
+  background: linear-gradient(to bottom, rgba(4,10,26,0.65), transparent);
 }
 
 .chat-title{
   font-family: var(--font-display);
-  font-size: clamp(22px, 4vw, 32px);
+  font-size: clamp(18px, 3vw, 28px);
   letter-spacing: 0.08em;
   margin: 0;
   background: linear-gradient(90deg, var(--cyan), var(--pink));
@@ -77,21 +87,28 @@
   background: #3cffb0; box-shadow: 0 0 8px #3cffb0;
 }
 
-/* ---------- stage ---------- */
-.chat-stage-wrap{ position: relative; }
+.chat-hint{
+  flex-basis: 100%;
+  text-align: left;
+  font-size: 11px;
+  color: var(--fg-dim);
+  margin: 0;
+  opacity: 0.85;
+}
+
+/* ---------- room (fills the whole screen) ---------- */
+.chat-stage-wrap{ position: absolute; inset: 0; }
 
 .chat-stage{
-  position: relative;
+  position: absolute;
+  inset: 0;
   width: 100%;
-  aspect-ratio: 900 / 480;
-  border-radius: 18px;
+  height: 100%;
   overflow: hidden;
-  border: 1px solid var(--border);
   background:
     radial-gradient(ellipse at 50% 100%, rgba(47,123,255,0.22), transparent 60%),
     url("../img/aqua_House_screen.png") center / cover no-repeat,
     var(--bg-alt);
-  box-shadow: 0 20px 60px rgba(0,0,0,0.4);
 }
 
 .chat-stage-bg{ position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
@@ -163,8 +180,8 @@
 /* ---------- d-pad (touch movement) ---------- */
 .chat-dpad{
   position: absolute;
-  right: 14px;
-  bottom: 14px;
+  right: max(16px, env(safe-area-inset-right));
+  top: max(70px, env(safe-area-inset-top) + 60px);
   display: grid;
   grid-template-columns: repeat(3, 34px);
   grid-template-rows: repeat(2, 34px);
@@ -186,45 +203,59 @@
 .chat-dpad [data-dir="right"]{ grid-column: 3; grid-row: 2; }
 .chat-dpad [data-dir="down"]{ grid-column: 2; grid-row: 2; }
 
-/* ---------- input row ---------- */
-.chat-input-row{ display: flex; gap: 8px; align-items: center; }
-.chat-avatar-btn{
-  flex: none; width: 44px; height: 44px; border-radius: 50%; overflow: hidden;
-  border: 1px solid var(--border); background: var(--bg-alt); padding: 4px; cursor: pointer;
+/* ---------- log + message input: one small translucent panel, bottom-right ---------- */
+.chat-log, .chat-input-row{
+  position: absolute;
+  right: max(16px, env(safe-area-inset-right));
+  width: min(280px, 88vw);
+  z-index: 20;
+  background: rgba(6,20,52,0.55);
+  backdrop-filter: blur(6px);
+  border: 1px solid var(--border);
+  box-sizing: border-box;
 }
-.chat-avatar-btn img{ width: 100%; height: 100%; object-fit: contain; }
-.chat-input-row input[type="text"]{
-  flex: 1; min-width: 0; padding: 11px 14px; border-radius: 22px;
-  border: 1px solid var(--border); background: rgba(255,255,255,0.04); color: var(--fg);
-  font-family: var(--font-body); font-size: 14px;
-}
-.chat-input-row input[type="text"]:focus{ outline: none; border-color: var(--cyan); }
-.chat-send-btn{ flex: none; padding: 11px 20px; border-radius: 22px; }
 
-/* ---------- log ---------- */
 .chat-log{
-  max-height: 160px;
+  bottom: max(74px, env(safe-area-inset-bottom) + 64px);
+  max-height: 150px;
   overflow-y: auto;
   padding: 10px 14px;
-  border: 1px solid var(--border);
   border-radius: 12px;
-  background: rgba(255,255,255,0.03);
   display: flex;
   flex-direction: column;
   gap: 4px;
 }
-.chat-log-row{ margin: 0; font-size: 13px; line-height: 1.5; }
-.chat-log-time{ color: var(--fg-dim); margin-right: 6px; font-size: 11px; }
+.chat-log-row{ margin: 0; font-size: 12px; line-height: 1.5; }
+.chat-log-time{ color: var(--fg-dim); margin-right: 6px; font-size: 10px; }
 .chat-log-name{ color: var(--cyan); margin-right: 6px; font-weight: 600; }
 .chat-log-text{ color: var(--fg); word-break: break-word; }
 
-.chat-hint{ text-align: center; font-size: 12px; color: var(--fg-dim); margin: 0; }
+.chat-input-row{
+  bottom: max(16px, env(safe-area-inset-bottom));
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  border-radius: 14px;
+  padding: 6px;
+}
+.chat-avatar-btn{
+  flex: none; width: 36px; height: 36px; border-radius: 50%; overflow: hidden;
+  border: 1px solid var(--border); background: var(--bg-alt); padding: 3px; cursor: pointer;
+}
+.chat-avatar-btn img{ width: 100%; height: 100%; object-fit: contain; }
+.chat-input-row input[type="text"]{
+  flex: 1; min-width: 0; padding: 8px 12px; border-radius: 18px;
+  border: 1px solid var(--border); background: rgba(255,255,255,0.06); color: var(--fg);
+  font-family: var(--font-body); font-size: 13px;
+}
+.chat-input-row input[type="text"]:focus{ outline: none; border-color: var(--cyan); }
+.chat-send-btn{ flex: none; padding: 8px 16px; border-radius: 18px; font-size: 13px; }
 
 /* ---------- BGM volume ---------- */
 .chat-volume{
   position: fixed;
-  left: 14px;
-  bottom: 14px;
+  left: max(14px, env(safe-area-inset-left));
+  bottom: max(14px, env(safe-area-inset-bottom));
   z-index: 150;
   display: flex;
   align-items: center;
@@ -282,11 +313,6 @@
 .chat-entry-note{ font-size: 11px !important; color: var(--fg-dim); margin-top: 14px !important; }
 .chat-entry-error{ font-size: 12px !important; color: #ff8a8a; margin-top: 12px !important; }
 
-@media (max-width: 560px){
-  .chat-dpad{ transform: scale(0.9); right: 8px; bottom: 8px; }
-  .chat-log{ max-height: 120px; }
-}
-
 /* ---------- rotate-device hint (mobile portrait) ---------- */
 .chat-rotate-hint{
   display: none;
@@ -310,68 +336,17 @@
 
 /* Phones in portrait: hide the room, ask for a rotate instead of a squeezed layout. */
 @media (max-width: 700px) and (orientation: portrait){
-  .site-header, .site-footer{ display: none; }
   .chat-wrap{ display: none; }
   .chat-entry{ display: none; }
   .chat-volume{ display: none; }
   .chat-rotate-hint{ display: flex; }
 }
 
-/* Phones in landscape: go edge-to-edge, header/footer hidden, room fills the screen. */
-@media (max-height: 500px) and (orientation: landscape){
-  html, body{ height: 100%; }
-  .site-header, .site-footer{ display: none; }
-  .chat-page{
-    height: 100dvh;
-    min-height: 0;
-    padding: env(safe-area-inset-top, 6px) max(6px, env(safe-area-inset-right)) env(safe-area-inset-bottom, 6px) max(6px, env(safe-area-inset-left));
-    box-sizing: border-box;
-  }
-  .chat-wrap{ max-width: none; height: 100%; min-height: 0; gap: 6px; }
-  .chat-title{ font-size: 15px; }
-  .chat-online{ font-size: 11px; }
+/* Extra-short phone screens: trim padding/sizes a bit further. */
+@media (max-height: 420px){
+  .chat-header-row{ padding: 10px 14px; }
   .chat-hint{ display: none; }
-  .chat-stage-wrap{ flex: 1; min-height: 0; }
-  .chat-stage{ aspect-ratio: unset; width: 100%; height: 100%; border-radius: 10px; }
-  .chat-volume{
-    left: max(8px, env(safe-area-inset-left));
-    bottom: max(8px, env(safe-area-inset-bottom));
-    padding: 5px 10px;
-  }
-  .chat-volume input[type="range"]{ width: 60px; }
-
-  /* d-pad moves up top-right so it doesn't collide with the floating log/input panel below */
-  .chat-dpad{
-    top: max(8px, env(safe-area-inset-top));
-    right: max(8px, env(safe-area-inset-right));
-    bottom: auto;
-  }
-
-  /* log + message input become one small translucent panel floating bottom-right over the room */
-  .chat-log, .chat-input-row{
-    position: fixed;
-    right: max(8px, env(safe-area-inset-right));
-    width: min(240px, 46vw);
-    z-index: 20;
-    background: rgba(6,20,52,0.55);
-    backdrop-filter: blur(5px);
-    border: 1px solid var(--border);
-  }
-  .chat-log{
-    bottom: 46px;
-    max-height: 80px;
-    border-radius: 10px;
-    padding: 6px 8px;
-    gap: 2px;
-  }
-  .chat-log-row{ font-size: 11px; }
-  .chat-input-row{
-    bottom: max(8px, env(safe-area-inset-bottom));
-    border-radius: 10px;
-    padding: 4px;
-    gap: 4px;
-  }
-  .chat-avatar-btn{ width: 32px; height: 32px; }
-  .chat-input-row input[type="text"]{ padding: 6px 8px; font-size: 12px; }
-  .chat-send-btn{ padding: 6px 10px; font-size: 12px; }
+  .chat-dpad{ top: max(56px, env(safe-area-inset-top) + 48px); transform: scale(0.9); }
+  .chat-log{ max-height: 90px; }
+  .chat-log, .chat-input-row{ width: min(230px, 60vw); }
 }
