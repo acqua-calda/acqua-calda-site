@@ -19,6 +19,33 @@
     });
   }
 
+  /* ---------- ACQUA HOUSE admin access key ---------- */
+  // Client-side gate only (static site, no backend) -- keeps casual visitors
+  // from picking OZ/YUU in ACQUA HOUSE, not a real security boundary.
+  const ACCESS_KEY_STORAGE = 'acquaHouseAdmin';
+  const ACCESS_KEY_PASSWORD = '0905';
+  const accessKeyNavBtn = document.getElementById('accessKeyNavBtn');
+  if (accessKeyNavBtn) {
+    accessKeyNavBtn.addEventListener('click', (e) => {
+      e.preventDefault();
+      let unlocked = false;
+      try { unlocked = localStorage.getItem(ACCESS_KEY_STORAGE) === 'true'; } catch { /* ignore */ }
+      if (unlocked) {
+        alert('すでに管理人として認識されています。ACQUA HOUSEでOZ・YUUが選べます。');
+        return;
+      }
+      let input;
+      try { input = window.prompt('管理人アクセスキーを入力してください'); } catch { return; }
+      if (input === null) return;
+      if (input === ACCESS_KEY_PASSWORD) {
+        try { localStorage.setItem(ACCESS_KEY_STORAGE, 'true'); } catch { /* ignore */ }
+        alert('認証しました。ACQUA HOUSEでOZ・YUUが選べるようになりました。');
+      } else {
+        alert('アクセスキーが違います。');
+      }
+    });
+  }
+
   /* ---------- header background on scroll ---------- */
   const header = document.getElementById('siteHeader');
   const onScroll = () => {

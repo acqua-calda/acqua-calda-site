@@ -10,9 +10,17 @@
   window.addEventListener('orientationchange', () => setTimeout(collapseAddressBar, 300));
 
   const AVATARS = [
-    { id: 'oz', name: 'OZ', src: 'img/OZ_kawaii.png' },
-    { id: 'yuu', name: 'YUU', src: 'img/YUU_kawaii.png' },
+    { id: 'a', name: 'A', src: 'img/A.png' },
+    { id: 'b', name: 'B', src: 'img/B.png' },
+    { id: 'c', name: 'C', src: 'img/C.png' },
+    { id: 'd', name: 'D', src: 'img/D.png' },
+    { id: 'e', name: 'E', src: 'img/E.png' },
+    { id: 'f', name: 'F', src: 'img/F.png' },
+    { id: 'g', name: 'G', src: 'img/G.png' },
+    { id: 'oz', name: 'OZ', src: 'img/OZ_kawaii.png', restricted: true },
+    { id: 'yuu', name: 'YUU', src: 'img/YUU_kawaii.png', restricted: true },
   ];
+  const ADMIN_STORAGE_KEY = 'acquaHouseAdmin';
   const WORLD_W = 900;
   const WORLD_H = 480;
   const AVATAR_W = 81;   // world units, footprint used for movement clamping (matches the 9% x 209:332 CSS box)
@@ -75,6 +83,13 @@
     return String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   }
   function clamp(v, min, max) { return Math.max(min, Math.min(max, v)); }
+  function isAdminUnlocked() {
+    try { return localStorage.getItem(ADMIN_STORAGE_KEY) === 'true'; } catch { return false; }
+  }
+  function availableAvatars() {
+    const unlocked = isAdminUnlocked();
+    return AVATARS.filter(a => !a.restricted || unlocked);
+  }
 
   let profile = loadProfile();
   let myUid = null;
@@ -139,7 +154,9 @@
   /* ---------- entry overlay ---------- */
   function renderAvatarPicker(selectedId) {
     entryAvatarPicker.innerHTML = '';
-    AVATARS.forEach(a => {
+    const visible = availableAvatars();
+    if (!visible.some(a => a.id === selectedId)) selectedId = visible[0].id;
+    visible.forEach(a => {
       const btn = document.createElement('button');
       btn.type = 'button';
       btn.className = 'chat-avatar-option' + (a.id === selectedId ? ' is-selected' : '');

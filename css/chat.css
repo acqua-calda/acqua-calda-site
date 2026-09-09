@@ -316,14 +316,22 @@ body{ min-height: calc(100dvh + 1px); overflow-x: hidden; }
   width: 100%; padding: 11px 14px; border-radius: 12px; margin-bottom: 16px;
   border: 1px solid var(--border); background: rgba(255,255,255,0.04); color: var(--fg); font-size: 14px;
 }
-.chat-avatar-picker{ display: flex; gap: 12px; justify-content: center; margin-bottom: 20px; }
-.chat-avatar-option{
-  display: flex; flex-direction: column; align-items: center; gap: 6px;
-  background: none; border: 2px solid transparent; border-radius: 12px; padding: 8px;
-  cursor: pointer; width: 90px;
+.chat-avatar-picker{
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(64px, 1fr));
+  gap: 8px;
+  margin-bottom: 20px;
+  max-height: 280px;
+  overflow-y: auto;
+  padding: 2px;
 }
-.chat-avatar-option img{ width: 100%; height: 80px; object-fit: contain; }
-.chat-avatar-option span{ font-size: 12px; color: var(--fg-dim); }
+.chat-avatar-option{
+  display: flex; flex-direction: column; align-items: center; gap: 4px;
+  background: none; border: 2px solid transparent; border-radius: 12px; padding: 6px 4px;
+  cursor: pointer;
+}
+.chat-avatar-option img{ width: 100%; height: 56px; object-fit: contain; }
+.chat-avatar-option span{ font-size: 11px; color: var(--fg-dim); }
 .chat-avatar-option.is-selected{ border-color: var(--cyan); background: rgba(0,224,255,0.08); }
 .chat-avatar-option.is-selected span{ color: var(--fg); }
 .chat-entry-note{ font-size: 11px !important; color: var(--fg-dim); margin-top: 14px !important; }
