@@ -17,6 +17,12 @@
     { id: 'e', name: 'E', src: 'img/E.png', gender: 'male' },
     { id: 'f', name: 'F', src: 'img/F.png', gender: 'male' },
     { id: 'g', name: 'G', src: 'img/G.png', gender: 'male' },
+    { id: 'h', name: 'H', src: 'img/H.png', gender: 'female' },
+    { id: 'i', name: 'I', src: 'img/I.png', gender: 'female' },
+    { id: 'j', name: 'J', src: 'img/J.png', gender: 'female' },
+    { id: 'k', name: 'K', src: 'img/K.png', gender: 'female' },
+    { id: 'l', name: 'L', src: 'img/L.png', gender: 'female' },
+    { id: 'm', name: 'M', src: 'img/M.png', gender: 'female' },
     { id: 'oz', name: 'OZ', src: 'img/OZ_kawaii.png', restricted: true },
     { id: 'yuu', name: 'YUU', src: 'img/YUU_kawaii.png', restricted: true },
   ];
@@ -24,6 +30,7 @@
   // (and tag avatars with the matching `gender`) once other genders have art.
   const GENDERS = [
     { id: 'male', label: '男性' },
+    { id: 'female', label: '女性' },
   ];
   const ADMIN_STORAGE_KEY = 'acquaHouseAdmin';
   const ADMIN_DURATION_MS = 24 * 60 * 60 * 1000; // must match js/script.js's ACCESS_KEY_DURATION_MS
