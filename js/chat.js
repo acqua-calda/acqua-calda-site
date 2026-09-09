@@ -133,7 +133,7 @@
 
   /* ---------- sound effects & BGM ---------- */
   const ponSfx = new Audio('audio/pon.mp3');
-  ponSfx.volume = 0.7;
+  ponSfx.volume = 0.49; // 30% quieter than the original 0.7
   function playPon() {
     try { ponSfx.currentTime = 0; ponSfx.play().catch(() => {}); } catch { /* ignore */ }
   }
