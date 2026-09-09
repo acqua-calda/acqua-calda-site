@@ -268,7 +268,8 @@
     showNotice('チャットへの接続に失敗しました。時間をおいて再度お試しください。');
   }
 
-  entryEnterBtn.addEventListener('click', () => {
+  function submitEntry() {
+    entryNameInput.blur(); // dismiss the mobile keyboard so it can't cover the room
     const name = entryNameInput.value.trim().slice(0, NAME_MAX) || 'なまえ未設定';
     const avatarId = selectedAvatarId || AVATARS[0].id;
     profile = { name, avatar: avatarId };
@@ -276,6 +277,12 @@
     closeEntry();
     applyMyAvatarButton();
     enterRoom();
+  }
+  entryEnterBtn.addEventListener('click', submitEntry);
+  entryNameInput.addEventListener('keydown', (e) => {
+    // Enter just dismisses the keyboard here -- the user still needs to see
+    // the avatar picker below to choose one before actually entering.
+    if (e.key === 'Enter') { e.preventDefault(); entryNameInput.blur(); }
   });
   myAvatarBtn.addEventListener('click', openEntry);
 
