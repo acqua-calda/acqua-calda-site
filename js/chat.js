@@ -33,6 +33,7 @@
   const logEl = document.getElementById('chatLog');
   const onlineCountEl = document.getElementById('chatOnlineCount');
   const leaveBtn = document.getElementById('chatLeaveBtn');
+  const fullscreenBtn = document.getElementById('chatFullscreenBtn');
   const dpad = document.getElementById('chatDpad');
   const bgCanvas = document.getElementById('chatStageBg');
 
@@ -416,6 +417,18 @@
     leaveBtn.addEventListener('click', () => {
       clearMyPresence();
       window.location.href = 'index.html';
+    });
+  }
+
+  /* ---------- fullscreen (best-effort; unsupported on iOS Safari) ---------- */
+  if (fullscreenBtn && document.documentElement.requestFullscreen) {
+    fullscreenBtn.hidden = false;
+    fullscreenBtn.addEventListener('click', () => {
+      if (document.fullscreenElement) {
+        document.exitFullscreen().catch(() => {});
+      } else {
+        document.documentElement.requestFullscreen().catch(() => {});
+      }
     });
   }
 
