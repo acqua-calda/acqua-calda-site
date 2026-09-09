@@ -19,6 +19,7 @@
   const IDLE_LIMIT_MS = 60 * 60 * 1000;   // auto-leave after 1 hour with no movement/chat
   const IDLE_CHECK_MS = 60 * 1000;        // how often to check idleness / sweep stale peers
   const STORAGE_KEY = 'acquaChatProfile';
+  const BGM_VOLUME_KEY = 'acquaHouseBgmVolume';
   const MOVE_KEYS = ['arrowup', 'arrowdown', 'arrowleft', 'arrowright', 'w', 'a', 's', 'd'];
 
   const stage = document.getElementById('chatStage');
@@ -36,6 +37,9 @@
   const fullscreenBtn = document.getElementById('chatFullscreenBtn');
   const dpad = document.getElementById('chatDpad');
   const bgCanvas = document.getElementById('chatStageBg');
+  const volumeWrap = document.getElementById('chatVolume');
+  const volumeSlider = document.getElementById('chatVolumeSlider');
+  const volumeIcon = document.getElementById('chatVolumeIcon');
 
   if (!stage) return;
 
@@ -80,6 +84,50 @@
   let listenersAttached = false;
 
   function markActivity() { lastActivityAt = Date.now(); }
+
+  /* ---------- sound effects & BGM ---------- */
+  const ponSfx = new Audio('audio/pon.mp3');
+  ponSfx.volume = 0.7;
+  function playPon() {
+    try { ponSfx.currentTime = 0; ponSfx.play().catch(() => {}); } catch { /* ignore */ }
+  }
+
+  const bgm = new Audio('audio/aqua_House.mp3');
+  bgm.loop = true;
+  bgm.preload = 'none';
+
+  function loadBgmVolume() {
+    let v = 60;
+    try {
+      const stored = localStorage.getItem(BGM_VOLUME_KEY);
+      if (stored !== null) v = Number(stored);
+    } catch { /* ignore */ }
+    return Number.isFinite(v) ? clamp(v, 0, 100) : 60;
+  }
+  function applyBgmVolume(v) {
+    bgm.volume = v / 100;
+    bgm.muted = v <= 0;
+    if (volumeIcon) volumeIcon.textContent = v <= 0 ? '🔇' : v < 50 ? '🔉' : '🔊';
+  }
+  if (volumeSlider) {
+    const initialVolume = loadBgmVolume();
+    volumeSlider.value = String(initialVolume);
+    applyBgmVolume(initialVolume);
+    volumeSlider.addEventListener('input', () => {
+      const v = Number(volumeSlider.value);
+      applyBgmVolume(v);
+      try { localStorage.setItem(BGM_VOLUME_KEY, String(v)); } catch { /* ignore */ }
+    });
+  }
+  function playBgm() {
+    if (volumeWrap) volumeWrap.hidden = false;
+    bgm.play().catch(() => {});
+  }
+  function stopBgm() {
+    bgm.pause();
+    bgm.currentTime = 0;
+    if (volumeWrap) volumeWrap.hidden = true;
+  }
 
   /* ---------- ambient room background ---------- */
   (function initStageBg() {
@@ -229,6 +277,7 @@
     bubble.hidden = false;
     clearTimeout(el._bubbleTimer);
     el._bubbleTimer = setTimeout(() => { bubble.hidden = true; }, BUBBLE_MS);
+    playPon();
   }
 
   /* ---------- movement input ---------- */
@@ -411,6 +460,7 @@
     if (myEl) { myEl.remove(); myEl = null; }
     stopIdleWatch();
     if (leaveBtn) leaveBtn.hidden = true;
+    stopBgm();
   }
 
   if (leaveBtn) {
@@ -466,6 +516,7 @@
       markActivity();
       startIdleWatch();
       if (leaveBtn) leaveBtn.hidden = false;
+      playBgm();
     };
 
     if (auth.currentUser) {

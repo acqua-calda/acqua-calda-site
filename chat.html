@@ -3,13 +3,13 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<title>ACQUA CHAT | Acqua Calda Official Site</title>
-<meta name="description" content="Acqua Calda(アクア・カルダ) ファン交流用のリアルタイムアバターチャット">
+<title>ACQUA HOUSE | Acqua Calda Official Site</title>
+<meta name="description" content="Acqua Calda(アクア・カルダ) ファン交流用のリアルタイムアバターチャット「Acqua House」">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=Baloo+2:wght@600;700;800&family=Noto+Sans+JP:wght@300;400;500;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="css/style.css?v=25">
-<link rel="stylesheet" href="css/chat.css?v=5">
+<link rel="stylesheet" href="css/chat.css?v=6">
 </head>
 <body>
 
@@ -27,7 +27,7 @@
     <a href="index.html#discography">DISCOGRAPHY</a>
     <a href="index.html#live">LIVE</a>
     <a href="index.html#contact">CONTACT</a>
-    <a href="chat.html" class="active">CHAT</a>
+    <a href="chat.html" class="active">ACQUA HOUSE</a>
   </nav>
   <button class="nav-toggle" id="navToggle" aria-label="メニューを開く" aria-expanded="false">
     <span></span><span></span><span></span>
@@ -38,7 +38,7 @@
   <div class="chat-wrap">
 
     <div class="chat-header-row">
-      <h1 class="chat-title">ACQUA CHAT</h1>
+      <h1 class="chat-title">ACQUA HOUSE</h1>
       <div class="chat-header-right">
         <div class="chat-online"><span class="dot-live"></span><span id="chatOnlineCount">0</span>人がおしゃべり中</div>
         <button type="button" class="chat-fullscreen-btn" id="chatFullscreenBtn" hidden aria-label="全画面表示">⛶</button>
@@ -69,6 +69,12 @@
     <p class="chat-hint">矢印キー / WASD で移動、Enterで発言（誰でも見られる公開チャットです。個人情報の書き込みには注意してね）</p>
   </div>
 
+  <!-- ===== BGM VOLUME ===== -->
+  <div class="chat-volume" id="chatVolume" hidden>
+    <span class="chat-volume-icon" id="chatVolumeIcon">🔊</span>
+    <input type="range" id="chatVolumeSlider" min="0" max="100" value="60" aria-label="BGM音量">
+  </div>
+
   <!-- ===== ROTATE-DEVICE HINT (mobile portrait) ===== -->
   <div class="chat-rotate-hint" id="chatRotateHint">
     <div class="chat-rotate-icon">📱</div>
@@ -78,7 +84,7 @@
   <!-- ===== ENTRY OVERLAY ===== -->
   <div class="chat-entry" id="chatEntry" hidden>
     <div class="chat-entry-card">
-      <h2>ACQUA CHATに入る</h2>
+      <h2>ACQUA HOUSEに入る</h2>
       <p>なまえとアバターを選んでね</p>
       <input type="text" id="entryNameInput" maxlength="10" placeholder="なまえ（10文字まで）">
       <div class="chat-avatar-picker" id="entryAvatarPicker"></div>
@@ -98,6 +104,6 @@
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-database-compat.js"></script>
 <script src="js/firebase-config.js?v=2"></script>
-<script src="js/chat.js?v=5"></script>
+<script src="js/chat.js?v=6"></script>
 </body>
 </html>

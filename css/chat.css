@@ -87,7 +87,10 @@
   border-radius: 18px;
   overflow: hidden;
   border: 1px solid var(--border);
-  background: radial-gradient(ellipse at 50% 100%, rgba(47,123,255,0.28), transparent 60%), var(--bg-alt);
+  background:
+    radial-gradient(ellipse at 50% 100%, rgba(47,123,255,0.22), transparent 60%),
+    url("../img/aqua_House_screen.png") center / cover no-repeat,
+    var(--bg-alt);
   box-shadow: 0 20px 60px rgba(0,0,0,0.4);
 }
 
@@ -217,6 +220,29 @@
 
 .chat-hint{ text-align: center; font-size: 12px; color: var(--fg-dim); margin: 0; }
 
+/* ---------- BGM volume ---------- */
+.chat-volume{
+  position: fixed;
+  left: 14px;
+  bottom: 14px;
+  z-index: 150;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-radius: 20px;
+  background: rgba(6,20,52,0.7);
+  border: 1px solid var(--border);
+  backdrop-filter: blur(6px);
+}
+.chat-volume[hidden]{ display: none; }
+.chat-volume-icon{ font-size: 15px; line-height: 1; }
+.chat-volume input[type="range"]{
+  width: 90px;
+  accent-color: var(--cyan);
+  cursor: pointer;
+}
+
 /* ---------- entry overlay ---------- */
 .chat-entry{
   position: fixed; inset: 0; z-index: 200;
@@ -287,6 +313,7 @@
   .site-header, .site-footer{ display: none; }
   .chat-wrap{ display: none; }
   .chat-entry{ display: none; }
+  .chat-volume{ display: none; }
   .chat-rotate-hint{ display: flex; }
 }
 
@@ -307,4 +334,10 @@
   .chat-stage-wrap{ flex: 1; min-height: 0; }
   .chat-stage{ aspect-ratio: unset; width: 100%; height: 100%; border-radius: 10px; }
   .chat-log{ max-height: 46px; }
+  .chat-volume{
+    left: max(8px, env(safe-area-inset-left));
+    bottom: max(8px, env(safe-area-inset-bottom));
+    padding: 5px 10px;
+  }
+  .chat-volume input[type="range"]{ width: 60px; }
 }
