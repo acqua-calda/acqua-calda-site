@@ -131,6 +131,25 @@
 
   function markActivity() { lastActivityAt = Date.now(); }
 
+  /* ---------- iPhone push notification on entry (via ntfy.sh) ---------- */
+  // Topic is an unguessable random slug rather than a secret -- ntfy has no
+  // auth on the free tier, so anyone who found it could publish fake joins,
+  // but that's a minor annoyance, not a security issue (who's in the room is
+  // already publicly visible to anyone in it).
+  const NTFY_TOPIC = 'acquahouse-3b7438a3b969';
+  function notifyEntry(name, avatarLabel) {
+    fetch('https://ntfy.sh', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        topic: NTFY_TOPIC,
+        title: 'ACQUA HOUSE',
+        message: `${name}さん（${avatarLabel}）が入室しました`,
+        tags: ['door'],
+      }),
+    }).catch(() => { /* best-effort; never block room entry on this */ });
+  }
+
   /* ---------- sound effects & BGM ---------- */
   const ponSfx = new Audio('audio/pon.mp3');
   ponSfx.volume = 0.49; // 30% quieter than the original 0.7
@@ -627,6 +646,7 @@
         updatedAt: firebase.database.ServerValue.TIMESTAMP,
       });
       presenceRef.onDisconnect().remove();
+      notifyEntry(profile.name, avatarById(profile.avatar).name);
 
       if (!listenersAttached) {
         listenersAttached = true;
