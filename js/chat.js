@@ -469,12 +469,21 @@
   }
 
   /* ---------- shared cooperative catch detection ---------- */
-  function isAnyoneNearLane(laneX) {
-    if (myEl && Math.abs(myState.x - laneX) <= RHYTHM_HIT_TOLERANCE) return true;
-    for (const entry of remoteAvatars.values()) {
-      if (Math.abs(entry.curX - laneX) <= RHYTHM_HIT_TOLERANCE) return true;
-    }
-    return false;
+  function avatarsNearLane(laneX) {
+    const catchers = [];
+    if (myEl && Math.abs(myState.x - laneX) <= RHYTHM_HIT_TOLERANCE) catchers.push(myEl);
+    remoteAvatars.forEach((entry) => {
+      if (Math.abs(entry.curX - laneX) <= RHYTHM_HIT_TOLERANCE) catchers.push(entry.el);
+    });
+    return catchers;
+  }
+
+  function flashAvatarCatch(el) {
+    el.classList.remove('is-note-catch');
+    void el.offsetWidth; // restart the CSS animation even if it's already mid-flash from a previous catch
+    el.classList.add('is-note-catch');
+    clearTimeout(el._catchGlowTimer);
+    el._catchGlowTimer = setTimeout(() => el.classList.remove('is-note-catch'), 400);
   }
 
   /* ---------- toast ---------- */
@@ -534,14 +543,86 @@
   rhythmResultCloseBtn && rhythmResultCloseBtn.addEventListener('click', () => { rhythmResultEl.hidden = true; });
 
   /* ---------- popn button (world object, part of the room itself) ---------- */
+  const POPN_POS_KEY = 'acquaHousePopnPos';
+  const POPN_DEFAULT_POS = { x: 150, y: 260 };
+  const POPN_LONG_PRESS_MS = 450;
+  const POPN_MOVE_CANCEL_PX = 10; // if the pointer wanders this far before the long-press fires, it's a stray touch/scroll, not drag intent
+
+  function loadPopnPos() {
+    try {
+      const raw = JSON.parse(localStorage.getItem(POPN_POS_KEY));
+      if (raw && Number.isFinite(raw.x) && Number.isFinite(raw.y)) return raw;
+    } catch { /* ignore */ }
+    return { ...POPN_DEFAULT_POS };
+  }
+  function savePopnPos(pos) {
+    try { localStorage.setItem(POPN_POS_KEY, JSON.stringify(pos)); } catch { /* ignore */ }
+  }
+  function clientToWorld(clientX, clientY) {
+    const rect = stage.getBoundingClientRect();
+    return {
+      x: clamp(((clientX - rect.left) / rect.width) * WORLD_W, 0, WORLD_W),
+      y: clamp(((clientY - rect.top) / rect.height) * WORLD_H, 0, WORLD_H),
+    };
+  }
+
   const popnBtn = document.createElement('button');
   popnBtn.type = 'button';
   popnBtn.className = 'acqua-popn-btn';
-  popnBtn.setAttribute('aria-label', 'ミニゲームを始める');
+  popnBtn.setAttribute('aria-label', 'ミニゲームを始める（長押しで移動できます）');
   popnBtn.innerHTML = '<img src="img/popn.png" alt="">';
-  positionWorldEl(popnBtn, 150, 260);
+  let popnPos = loadPopnPos();
+  positionWorldEl(popnBtn, popnPos.x, popnPos.y);
   stage.appendChild(popnBtn);
+
+  // long-press to drag it anywhere in the room; a plain tap still opens the
+  // game dialog. Position is a per-browser preference (like the BGM volume
+  // slider) rather than something synced to everyone else in the room.
+  let popnLongPressTimer = null;
+  let popnDragging = false;
+  let popnDidDrag = false;
+
+  function startPopnDrag() {
+    popnDragging = true;
+    popnDidDrag = true;
+    popnBtn.classList.add('is-dragging');
+  }
+  function endPopnDrag() {
+    if (!popnDragging) return;
+    popnDragging = false;
+    popnBtn.classList.remove('is-dragging');
+    savePopnPos(popnPos);
+  }
+
+  popnBtn.addEventListener('pointerdown', (e) => {
+    if (e.button !== 0 && e.pointerType === 'mouse') return;
+    const startX = e.clientX, startY = e.clientY;
+    popnDidDrag = false;
+    clearTimeout(popnLongPressTimer);
+    popnLongPressTimer = setTimeout(startPopnDrag, POPN_LONG_PRESS_MS);
+
+    const onMove = (ev) => {
+      if (popnDragging) {
+        popnPos = clientToWorld(ev.clientX, ev.clientY);
+        positionWorldEl(popnBtn, popnPos.x, popnPos.y);
+      } else if (Math.hypot(ev.clientX - startX, ev.clientY - startY) > POPN_MOVE_CANCEL_PX) {
+        clearTimeout(popnLongPressTimer);
+      }
+    };
+    const onUp = () => {
+      clearTimeout(popnLongPressTimer);
+      endPopnDrag();
+      window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerup', onUp);
+      window.removeEventListener('pointercancel', onUp);
+    };
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', onUp);
+    window.addEventListener('pointercancel', onUp);
+  });
+
   popnBtn.addEventListener('click', () => {
+    if (popnDidDrag) { popnDidDrag = false; return; } // this click just ended a drag -- don't also open the dialog
     if (!fbReady || !myUid) return;
     if (rhythmState) { flashRoomToast('いまはほかの人が音ゲー中だよ'); return; }
     openRhythmConfirm();
@@ -728,10 +809,13 @@
       positionWorldEl(n.el, n.laneX, y);
       if (!n.judged && progress >= 0.97) {
         n.judged = true;
-        if (isAnyoneNearLane(n.laneX)) {
+        const catchers = avatarsNearLane(n.laneX);
+        if (catchers.length) {
           st.score++;
           rhythmScoreValEl.textContent = String(st.score);
           n.el.classList.add('is-hit');
+          catchers.forEach(flashAvatarCatch);
+          playPon();
         } else {
           n.el.classList.add('is-miss');
         }

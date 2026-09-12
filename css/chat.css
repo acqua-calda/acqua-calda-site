@@ -153,6 +153,12 @@ body{ min-height: calc(100dvh + 1px); overflow-x: hidden; }
   0%, 100%{ transform: translateY(0); }
   50%{ transform: translateY(-4%); }
 }
+.chat-avatar.is-note-catch .chat-avatar-img{ animation: chatNoteCatchGlow 0.4s ease-out; }
+@keyframes chatNoteCatchGlow{
+  0%{ filter: drop-shadow(0 6px 10px rgba(0,0,0,0.45)) drop-shadow(0 0 0 rgba(0,224,255,0)); }
+  25%{ filter: drop-shadow(0 6px 10px rgba(0,0,0,0.45)) drop-shadow(0 0 10px rgba(0,224,255,0.95)) drop-shadow(0 0 22px rgba(0,224,255,0.75)); }
+  100%{ filter: drop-shadow(0 6px 10px rgba(0,0,0,0.45)) drop-shadow(0 0 0 rgba(0,224,255,0)); }
+}
 .chat-avatar-name{
   margin-top: 2px;
   font-size: 11px;
@@ -394,19 +400,21 @@ body{ min-height: calc(100dvh + 1px); overflow-x: hidden; }
 /* ---------- rhythm minigame (popn) ---------- */
 .acqua-popn-btn{
   position: absolute;
-  width: 7%;
+  width: 4.9%;
   aspect-ratio: 257 / 313;
   transform: translate(-50%, -100%);
   background: none;
   border: none;
   padding: 0;
   cursor: pointer;
+  touch-action: none;
   z-index: 6;
   filter: drop-shadow(0 4px 10px rgba(0,0,0,0.5));
   animation: popnBob 2.2s ease-in-out infinite;
 }
 .acqua-popn-btn img{ width: 100%; height: 100%; object-fit: contain; }
 .acqua-popn-btn:hover{ filter: drop-shadow(0 4px 10px rgba(0,0,0,0.5)) drop-shadow(0 0 10px rgba(0,224,255,0.6)); }
+.acqua-popn-btn.is-dragging{ animation: none; filter: drop-shadow(0 4px 14px rgba(0,0,0,0.6)) drop-shadow(0 0 14px rgba(0,224,255,0.85)); cursor: grabbing; }
 @keyframes popnBob{
   0%, 100%{ transform: translate(-50%, -100%); }
   50%{ transform: translate(-50%, -100%) translateY(-6%); }
@@ -416,7 +424,7 @@ body{ min-height: calc(100dvh + 1px); overflow-x: hidden; }
   position: absolute;
   transform: translate(-50%, -50%);
   pointer-events: none;
-  z-index: 4;
+  z-index: 8; /* above avatars (z-index 5) so it visibly lands in front of/on a character instead of sinking behind their sprite as it falls */
   border-radius: 50%;
   background: url('../img/white_ball.png') center / contain no-repeat;
   filter: drop-shadow(0 0 10px rgba(255,255,255,0.4));
