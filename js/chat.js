@@ -70,6 +70,19 @@
   const volumeWrap = document.getElementById('chatVolume');
   const volumeSlider = document.getElementById('chatVolumeSlider');
   const volumeIcon = document.getElementById('chatVolumeIcon');
+  const rhythmToastEl = document.getElementById('rhythmToast');
+  const rhythmHudEl = document.getElementById('rhythmHud');
+  const rhythmScoreValEl = document.getElementById('rhythmScoreVal');
+  const rhythmCountdownEl = document.getElementById('rhythmCountdown');
+  const rhythmConfirmEl = document.getElementById('rhythmConfirm');
+  const rhythmConfirmYesBtn = document.getElementById('rhythmConfirmYesBtn');
+  const rhythmConfirmNoBtn = document.getElementById('rhythmConfirmNoBtn');
+  const rhythmSongSelectEl = document.getElementById('rhythmSongSelect');
+  const rhythmSongListEl = document.getElementById('rhythmSongList');
+  const rhythmSongCancelBtn = document.getElementById('rhythmSongCancelBtn');
+  const rhythmResultEl = document.getElementById('rhythmResult');
+  const rhythmResultScoreValEl = document.getElementById('rhythmResultScoreVal');
+  const rhythmResultCloseBtn = document.getElementById('rhythmResultCloseBtn');
 
   if (!stage) return;
 
@@ -327,6 +340,7 @@
     el.style.left = (x / WORLD_W) * 100 + '%';
     el.style.top = (y / WORLD_H) * 100 + '%';
   }
+  const positionWorldEl = positionAvatarEl; // same world-space -> % conversion, used for non-avatar room objects too
   function setAvatarFacing(el, facing) {
     el.querySelector('.chat-avatar-img').style.transform = facing === 'left' ? 'scaleX(-1)' : 'scaleX(1)';
   }
@@ -337,6 +351,414 @@
     clearTimeout(el._bubbleTimer);
     el._bubbleTimer = setTimeout(() => { bubble.hidden = true; }, BUBBLE_MS);
     playPon();
+  }
+
+  /* ========================================================================
+     RHYTHM MINIGAME (popn) -- a cooperative shared session: whoever picks a
+     song broadcasts just a {song, startAt, endAt} signal over Firebase, and
+     every client independently decodes that track and runs the same simple
+     onset-detector over it, so everyone ends up with an identical falling
+     -note chart without needing to sync every single note over the network.
+     Catching is cooperative too: a note counts as caught if ANY avatar
+     (yourself or someone else, using their latest known on-screen position)
+     is standing under its lane when it lands, and every client tallies that
+     shared score locally from the same shared position data.
+     ======================================================================== */
+  const RHYTHM_SONGS = [
+    { id: 'game1', name: 'ゲーム1', src: 'audio/ゲーム1.mp3' },
+    { id: 'game2', name: 'ゲーム2', src: 'audio/ゲーム2.mp3' },
+    { id: 'game3', name: 'ゲーム3', src: 'audio/ゲーム3.mp3' },
+  ];
+  const RHYTHM_PREROLL_MS = 3200; // gap between "song picked" and the first note actually falling -- gives every client time to decode+chart the track and count in together
+  const RHYTHM_LANES = 5;
+  const RHYTHM_NOTE_FALL_MS = 1500; // time a note takes to fall from the top of the room to the hit line
+  const RHYTHM_HIT_TOLERANCE = AVATAR_W * 0.7;
+  const RHYTHM_NOTE_SIZE = 42;
+  const RHYTHM_STALE_GRACE_MS = 2000;
+
+  let rhythmAudioCtx = null;
+  function ensureRhythmAudioCtx() {
+    if (!rhythmAudioCtx) {
+      const Ctx = window.AudioContext || window.webkitAudioContext;
+      if (Ctx) rhythmAudioCtx = new Ctx();
+    }
+    return rhythmAudioCtx;
+  }
+  const rhythmAudio = new Audio();
+  rhythmAudio.preload = 'auto';
+
+  const rhythmChartCache = new Map(); // song id -> Promise<{ chart, durationMs }>
+
+  function rhythmLaneXs() {
+    const minX = AVATAR_W / 2 + 10;
+    const maxX = WORLD_W - AVATAR_W / 2 - 10;
+    const xs = [];
+    for (let i = 0; i < RHYTHM_LANES; i++) xs.push(minX + (maxX - minX) * (i / (RHYTHM_LANES - 1)));
+    return xs;
+  }
+
+  // Lightweight energy-based onset detector: downmix to mono, track short-window
+  // RMS energy, flag frames where energy rises faster than the local recent
+  // average (a simple "spectral flux" stand-in) as note onsets. This is not a
+  // beat-accurate chart, but it does land notes on the track's actual hits/
+  // accents rather than pure random timing.
+  function buildChartFromBuffer(buffer) {
+    const sr = buffer.sampleRate;
+    const chans = buffer.numberOfChannels;
+    const len = buffer.length;
+    const mono = new Float32Array(len);
+    for (let c = 0; c < chans; c++) {
+      const data = buffer.getChannelData(c);
+      for (let i = 0; i < len; i++) mono[i] += data[i] / chans;
+    }
+    const hop = Math.round(sr * 0.01);
+    const frame = Math.round(sr * 0.04);
+    const numFrames = Math.max(0, Math.floor((len - frame) / hop));
+    const energy = new Float32Array(numFrames);
+    for (let f = 0; f < numFrames; f++) {
+      let sum = 0;
+      const start = f * hop;
+      for (let i = 0; i < frame; i += 4) { // stride to keep this cheap on longer tracks
+        const s = mono[start + i];
+        sum += s * s;
+      }
+      energy[f] = Math.sqrt(sum / (frame / 4));
+    }
+    const flux = new Float32Array(numFrames);
+    for (let f = 1; f < numFrames; f++) {
+      const d = energy[f] - energy[f - 1];
+      flux[f] = d > 0 ? d : 0;
+    }
+    const smoothWin = 10;
+    const minGapFrames = Math.round(0.2 / 0.01);
+    const laneXs = rhythmLaneXs();
+    const chart = [];
+    let lastFrameIdx = -Infinity;
+    for (let f = 2; f < numFrames - 2; f++) {
+      const lo = Math.max(0, f - smoothWin);
+      const hi = Math.min(numFrames - 1, f + smoothWin);
+      let sum = 0;
+      for (let k = lo; k <= hi; k++) sum += flux[k];
+      const mean = sum / (hi - lo + 1);
+      const threshold = mean * 1.6 + 0.0012;
+      if (flux[f] > threshold && flux[f] >= flux[f - 1] && flux[f] >= flux[f + 1] && f - lastFrameIdx >= minGapFrames) {
+        const t = f * hop / sr;
+        const idx = chart.length;
+        // deterministic pseudo-random lane pick (same on every client, since it
+        // only depends on the onset's own time/index) -- no shared seed needed
+        const laneIdx = Math.floor(Math.abs(Math.sin(t * 12.9898 + idx)) * 1000) % laneXs.length;
+        chart.push({ t, laneX: laneXs[laneIdx] });
+        lastFrameIdx = f;
+      }
+    }
+    return chart;
+  }
+
+  function analyzeSong(song) {
+    if (rhythmChartCache.has(song.id)) return rhythmChartCache.get(song.id);
+    const promise = fetch(song.src)
+      .then((res) => res.arrayBuffer())
+      .then((buf) => ensureRhythmAudioCtx().decodeAudioData(buf))
+      .then((buffer) => ({
+        chart: buildChartFromBuffer(buffer),
+        durationMs: Math.round(buffer.duration * 1000),
+      }));
+    rhythmChartCache.set(song.id, promise);
+    promise.catch(() => rhythmChartCache.delete(song.id)); // let a failed decode be retried later
+    return promise;
+  }
+
+  /* ---------- shared cooperative catch detection ---------- */
+  function isAnyoneNearLane(laneX) {
+    if (myEl && Math.abs(myState.x - laneX) <= RHYTHM_HIT_TOLERANCE) return true;
+    for (const entry of remoteAvatars.values()) {
+      if (Math.abs(entry.curX - laneX) <= RHYTHM_HIT_TOLERANCE) return true;
+    }
+    return false;
+  }
+
+  /* ---------- toast ---------- */
+  let rhythmToastTimer = null;
+  function flashRoomToast(text) {
+    if (!rhythmToastEl) return;
+    rhythmToastEl.textContent = text;
+    rhythmToastEl.hidden = false;
+    requestAnimationFrame(() => rhythmToastEl.classList.add('is-visible'));
+    clearTimeout(rhythmToastTimer);
+    rhythmToastTimer = setTimeout(() => {
+      rhythmToastEl.classList.remove('is-visible');
+      setTimeout(() => { rhythmToastEl.hidden = true; }, 250);
+    }, 2200);
+  }
+
+  /* ---------- movement lock (left/right only, snapped to the bottom row) ---------- */
+  let movementLockedToGame = false;
+  let bgmWasPlayingBeforeGame = false;
+  function lockMovementToGame() {
+    if (movementLockedToGame) return;
+    movementLockedToGame = true;
+    if (dpad) dpad.classList.add('is-rhythm-locked');
+    bgmWasPlayingBeforeGame = !bgm.paused;
+    bgm.pause(); // let the song being played take over instead of overlapping the room's ambient BGM
+  }
+  function unlockMovementFromGame() {
+    if (!movementLockedToGame) return;
+    movementLockedToGame = false;
+    if (dpad) dpad.classList.remove('is-rhythm-locked');
+    if (bgmWasPlayingBeforeGame) bgm.play().catch(() => {});
+  }
+
+  /* ---------- confirm / song-select dialogs ---------- */
+  function openRhythmConfirm() { rhythmConfirmEl.hidden = false; }
+  function closeRhythmConfirm() { rhythmConfirmEl.hidden = true; }
+  function openRhythmSongSelect() {
+    rhythmSongListEl.innerHTML = '';
+    RHYTHM_SONGS.forEach((song) => {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'btn btn-outline rhythm-song-btn';
+      btn.textContent = song.name;
+      btn.addEventListener('click', () => {
+        closeRhythmSongSelect();
+        requestStartRhythmSession(song);
+      });
+      rhythmSongListEl.appendChild(btn);
+    });
+    rhythmSongSelectEl.hidden = false;
+  }
+  function closeRhythmSongSelect() { rhythmSongSelectEl.hidden = true; }
+
+  rhythmConfirmYesBtn && rhythmConfirmYesBtn.addEventListener('click', () => { closeRhythmConfirm(); openRhythmSongSelect(); });
+  rhythmConfirmNoBtn && rhythmConfirmNoBtn.addEventListener('click', closeRhythmConfirm);
+  rhythmSongCancelBtn && rhythmSongCancelBtn.addEventListener('click', closeRhythmSongSelect);
+  rhythmResultCloseBtn && rhythmResultCloseBtn.addEventListener('click', () => { rhythmResultEl.hidden = true; });
+
+  /* ---------- popn button (world object, part of the room itself) ---------- */
+  const popnBtn = document.createElement('button');
+  popnBtn.type = 'button';
+  popnBtn.className = 'acqua-popn-btn';
+  popnBtn.setAttribute('aria-label', 'ミニゲームを始める');
+  popnBtn.innerHTML = '<img src="img/popn.png" alt="">';
+  positionWorldEl(popnBtn, 150, 260);
+  stage.appendChild(popnBtn);
+  popnBtn.addEventListener('click', () => {
+    if (!fbReady || !myUid) return;
+    if (rhythmState) { flashRoomToast('いまはほかの人が音ゲー中だよ'); return; }
+    openRhythmConfirm();
+  });
+
+  /* ---------- session lifecycle ---------- */
+  let rhythmState = null;
+
+  function requestStartRhythmSession(song) {
+    flashRoomToast('曲を読み込み中…');
+    analyzeSong(song).then(({ durationMs }) => getServerNow().then((serverNow) => {
+      const startAt = serverNow + RHYTHM_PREROLL_MS;
+      // a transaction (rather than a plain set) so two people tapping "start"
+      // at nearly the same moment can't stomp each other's session -- only
+      // the first write lands if nobody else's session is already active.
+      return db.ref('game').transaction((current) => {
+        if (current && current.active) return; // someone beat us to it -- abort, leave their session alone
+        return {
+          active: true,
+          song: song.id,
+          startedBy: myUid,
+          startAt,
+          endAt: startAt + durationMs,
+        };
+      });
+    })).then((result) => {
+      if (!result.committed) { flashRoomToast('いまはほかの人が音ゲー中だよ'); return; }
+      db.ref('game').onDisconnect().update({ active: false }); // safety net if the starter drops mid-song
+    }).catch(() => {
+      flashRoomToast('曲の読み込みに失敗しました');
+    });
+  }
+
+  function showRhythmHud() {
+    rhythmScoreValEl.textContent = '0';
+    rhythmHudEl.hidden = false;
+  }
+  function hideRhythmHud() { rhythmHudEl.hidden = true; }
+
+  function showRhythmCountdown(delayMs) {
+    rhythmCountdownEl.hidden = false;
+    const endPerf = performance.now() + delayMs;
+    clearInterval(rhythmState.countdownInterval);
+    rhythmState.countdownInterval = setInterval(() => {
+      const remain = endPerf - performance.now();
+      rhythmCountdownEl.textContent = remain > 0 ? String(Math.ceil(remain / 1000)) : 'START!';
+      if (remain <= 0) clearInterval(rhythmState.countdownInterval);
+    }, 100);
+  }
+  function hideRhythmCountdown() {
+    if (rhythmState) clearInterval(rhythmState.countdownInterval);
+    rhythmCountdownEl.hidden = true;
+  }
+
+  function showRhythmResult(score) {
+    rhythmResultScoreValEl.textContent = String(score);
+    rhythmResultEl.hidden = false;
+  }
+
+  function spawnRhythmNote(entry) {
+    const el = document.createElement('div');
+    el.className = 'rhythm-note';
+    el.style.width = RHYTHM_NOTE_SIZE + 'px';
+    el.style.height = RHYTHM_NOTE_SIZE + 'px';
+    stage.appendChild(el);
+    rhythmState.notes.push({ el, laneX: entry.laneX, hitTime: entry.t, judged: false });
+  }
+
+  function actuallyStart(offsetMs) {
+    const st = rhythmState;
+    if (!st) return;
+    hideRhythmCountdown();
+    st.startPerf = performance.now() - offsetMs;
+    st.started = true;
+    if (st.chart) {
+      let idx = st.chart.findIndex((e) => e.t * 1000 - RHYTHM_NOTE_FALL_MS > offsetMs);
+      st.nextChartIndex = idx === -1 ? st.chart.length : idx;
+    } else {
+      st.nextChartIndex = 0;
+    }
+    rhythmAudio.src = st.song.src;
+    rhythmAudio.currentTime = Math.max(0, offsetMs / 1000);
+    rhythmAudio.play().catch(() => {});
+  }
+
+  function scheduleRhythmStart() {
+    const st = rhythmState;
+    getServerNow().then((serverNow) => {
+      if (rhythmState !== st) return; // superseded by a newer/other session
+      const delayMs = st.startAt - serverNow;
+      if (delayMs > 80) {
+        showRhythmCountdown(delayMs);
+        st.startTimer = setTimeout(() => actuallyStart(0), delayMs);
+      } else {
+        const offset = Math.max(0, Math.min(-delayMs, st.durationMs - 200));
+        actuallyStart(offset);
+      }
+    });
+  }
+
+  function enterRhythmGameMode(gameData) {
+    if (rhythmState && rhythmState.startAt === gameData.startAt && rhythmState.song.id === gameData.song) return;
+    exitRhythmGameMode();
+    const song = RHYTHM_SONGS.find((s) => s.id === gameData.song);
+    if (!song) return;
+    rhythmState = {
+      song,
+      startAt: gameData.startAt,
+      endAt: gameData.endAt,
+      durationMs: gameData.endAt - gameData.startAt,
+      startedBy: gameData.startedBy,
+      score: 0,
+      notes: [],
+      nextChartIndex: 0,
+      chart: null,
+      started: false,
+      ended: false,
+      startTimer: null,
+      countdownInterval: null,
+    };
+    rhythmResultEl.hidden = true; // clear any leftover result popup from a previous round
+    showRhythmHud();
+    lockMovementToGame();
+    const st = rhythmState;
+    analyzeSong(song).then(({ chart }) => {
+      if (rhythmState !== st) return; // session already moved on
+      st.chart = chart;
+      scheduleRhythmStart();
+    }).catch(() => {
+      // decode failed -- the player stays locked to the bottom row (in sync
+      // with everyone else) until the shared session's endAt is reached below
+    });
+  }
+
+  function endRhythmGame() {
+    const st = rhythmState;
+    if (!st || st.ended) return;
+    st.ended = true;
+    clearTimeout(st.startTimer);
+    clearInterval(st.countdownInterval);
+    rhythmAudio.pause();
+    st.notes.forEach((n) => n.el.remove());
+    st.notes = [];
+    hideRhythmCountdown();
+    hideRhythmHud();
+    showRhythmResult(st.score);
+    unlockMovementFromGame();
+    if (st.startedBy === myUid) {
+      db.ref('game').onDisconnect().cancel();
+      db.ref('game').update({ active: false }).catch(() => {});
+    }
+    rhythmState = null;
+  }
+
+  function exitRhythmGameMode() {
+    if (!rhythmState) return;
+    clearTimeout(rhythmState.startTimer);
+    clearInterval(rhythmState.countdownInterval);
+    rhythmAudio.pause();
+    rhythmState.notes.forEach((n) => n.el.remove());
+    hideRhythmCountdown();
+    hideRhythmHud();
+    unlockMovementFromGame();
+    rhythmState = null;
+  }
+
+  function updateRhythmGame(perfNow) {
+    const st = rhythmState;
+    if (!st || !st.started || st.ended) return;
+    const elapsedMs = perfNow - st.startPerf;
+
+    if (st.chart) {
+      while (st.nextChartIndex < st.chart.length
+        && (st.chart[st.nextChartIndex].t * 1000 - RHYTHM_NOTE_FALL_MS) <= elapsedMs) {
+        spawnRhythmNote(st.chart[st.nextChartIndex]);
+        st.nextChartIndex++;
+      }
+    }
+
+    st.notes = st.notes.filter((n) => {
+      const startMs = n.hitTime * 1000 - RHYTHM_NOTE_FALL_MS;
+      const progress = (elapsedMs - startMs) / RHYTHM_NOTE_FALL_MS;
+      const y = clamp(progress, 0, 1) * WORLD_H;
+      positionWorldEl(n.el, n.laneX, y);
+      if (!n.judged && progress >= 0.97) {
+        n.judged = true;
+        if (isAnyoneNearLane(n.laneX)) {
+          st.score++;
+          rhythmScoreValEl.textContent = String(st.score);
+          n.el.classList.add('is-hit');
+        } else {
+          n.el.classList.add('is-miss');
+        }
+      }
+      if (progress >= 1.2) { n.el.remove(); return false; }
+      return true;
+    });
+
+    if (elapsedMs >= st.durationMs) endRhythmGame();
+  }
+
+  function attachRhythmGameListener() {
+    db.ref('game').on('value', (snap) => {
+      const data = snap.val();
+      if (data && data.active) {
+        getServerNow().then((now) => {
+          const liveData = data; // (re-check nothing changed while awaiting server time)
+          if (now > liveData.endAt + RHYTHM_STALE_GRACE_MS) {
+            db.ref('game').update({ active: false }).catch(() => {}); // stale session that never got cleaned up (e.g. starter dropped offline) -- self-heal
+            return;
+          }
+          enterRhythmGameMode(liveData);
+        });
+      } else {
+        exitRhythmGameMode();
+      }
+    });
   }
 
   /* ---------- movement input ---------- */
@@ -380,6 +802,9 @@
       if (keys.has('arrowdown') || keys.has('s')) dy += 1;
       if (keys.has('arrowleft') || keys.has('a')) dx -= 1;
       if (keys.has('arrowright') || keys.has('d')) dx += 1;
+      // during the rhythm minigame everyone is pinned to the bottom row and
+      // can only shuffle left/right to get under falling notes
+      if (movementLockedToGame) dy = 0;
 
       const moving = dx !== 0 || dy !== 0;
       if (moving) {
@@ -393,6 +818,7 @@
         if (dx < 0) myState.facing = 'left';
         if (dx > 0) myState.facing = 'right';
       }
+      if (movementLockedToGame) myState.y = WORLD_H;
       myEl.classList.toggle('is-walking', moving);
       positionAvatarEl(myEl, myState.x, myState.y);
       setAvatarFacing(myEl, myState.facing);
@@ -422,6 +848,8 @@
       positionAvatarEl(entry.el, entry.curX, entry.curY);
       setAvatarFacing(entry.el, entry.targetFacing);
     });
+
+    if (rhythmState && rhythmState.started && !rhythmState.ended) updateRhythmGame(now);
 
     requestAnimationFrame(loop);
   }
@@ -599,6 +1027,7 @@
     if (leaveBtn) leaveBtn.hidden = true;
     stopBgm();
     detachLogListener();
+    exitRhythmGameMode();
     return removed; // let callers wait for this before navigating away
   }
 
@@ -651,6 +1080,7 @@
       if (!listenersAttached) {
         listenersAttached = true;
         attachPresenceListeners();
+        attachRhythmGameListener();
       }
       attachLogListener(); // fresh each entry so old messages never show up
       if (!loopStarted) { loopStarted = true; requestAnimationFrame(loop); }

@@ -12,7 +12,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=Baloo+2:wght@600;700;800&family=Noto+Sans+JP:wght@300;400;500;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="css/style.css?v=25">
-<link rel="stylesheet" href="css/chat.css?v=16">
+<link rel="stylesheet" href="css/chat.css?v=17">
 </head>
 <body>
 
@@ -76,6 +76,41 @@
     <input type="range" id="chatVolumeSlider" min="0" max="100" value="60" aria-label="BGM音量">
   </div>
 
+  <!-- ===== RHYTHM MINIGAME (popn) ===== -->
+  <div class="rhythm-toast" id="rhythmToast" hidden></div>
+
+  <div class="rhythm-hud" id="rhythmHud" hidden>
+    <span>SCORE <b id="rhythmScoreVal">0</b></span>
+  </div>
+
+  <div class="rhythm-countdown" id="rhythmCountdown" hidden></div>
+
+  <div class="rhythm-overlay" id="rhythmConfirm" hidden>
+    <div class="rhythm-dialog-card">
+      <p>ゲームをしますか？</p>
+      <div class="hero-actions">
+        <button type="button" class="btn btn-primary" id="rhythmConfirmYesBtn">はい</button>
+        <button type="button" class="btn btn-outline" id="rhythmConfirmNoBtn">いいえ</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="rhythm-overlay" id="rhythmSongSelect" hidden>
+    <div class="rhythm-dialog-card">
+      <p>曲を選んでね</p>
+      <div class="rhythm-song-list" id="rhythmSongList"></div>
+      <button type="button" class="btn btn-outline" id="rhythmSongCancelBtn">キャンセル</button>
+    </div>
+  </div>
+
+  <div class="rhythm-overlay" id="rhythmResult" hidden>
+    <div class="rhythm-dialog-card">
+      <p class="rhythm-result-title">RESULT</p>
+      <p class="rhythm-result-score">みんなでキャッチ <b id="rhythmResultScoreVal">0</b> こ！</p>
+      <button type="button" class="btn btn-primary" id="rhythmResultCloseBtn">とじる</button>
+    </div>
+  </div>
+
   <!-- ===== ROTATE-DEVICE HINT (mobile portrait) ===== -->
   <div class="chat-rotate-hint" id="chatRotateHint">
     <div class="chat-rotate-icon">📱</div>
@@ -107,6 +142,6 @@
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-database-compat.js"></script>
 <script src="js/firebase-config.js?v=2"></script>
-<script src="js/chat.js?v=22"></script>
+<script src="js/chat.js?v=23"></script>
 </body>
 </html>
