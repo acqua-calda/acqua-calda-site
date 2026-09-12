@@ -968,6 +968,7 @@
   const releaseSfx = new Audio('audio/basyuu.mp3');
   releaseSfx.volume = 0.7;
   function playReleaseSfx() {
+    try { chargeSfx.pause(); chargeSfx.currentTime = 0; } catch { /* ignore */ } // cut the charge sound off the moment the release fires
     try { releaseSfx.currentTime = 0; releaseSfx.play().catch(() => {}); } catch { /* ignore */ }
   }
   let ballLastVx = null;
