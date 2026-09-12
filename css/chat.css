@@ -251,8 +251,9 @@ body{ min-height: calc(100dvh + 1px); overflow-x: hidden; }
 /* ---------- ball catch/kick buttons ---------- */
 .chat-action-pad{
   position: absolute;
-  left: calc(max(16px, env(safe-area-inset-left)) + 122px);
-  bottom: max(16px, env(safe-area-inset-bottom));
+  right: max(16px, env(safe-area-inset-right));
+  top: 50%;
+  transform: translateY(-50%);
   display: flex;
   flex-direction: column;
   gap: 6px;

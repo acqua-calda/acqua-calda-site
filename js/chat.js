@@ -901,6 +901,11 @@
   const BALL_BOUNCE_DAMP = 0.55; // speed kept after each wall/floor bounce
   const BALL_MAX_FLIGHT_MS = 3200; // long enough to let it bounce a few times before it's declared landed
   const BALL_HIT_RADIUS = AVATAR_W * 0.6;
+  // the ball's div is centered on its (x,y) via translate(-50%,-50%) (unlike
+  // avatars, which are anchored at their feet), so the floor it bounces/rests
+  // on has to sit half the ball's height above WORLD_H -- otherwise its
+  // center would touch the true floor line and it'd look sunk in halfway.
+  const BALL_FLOOR_Y = WORLD_H - BALL_SIZE / 2;
   const BALL_DEFAULT_POS = { x: WORLD_W / 2, y: WORLD_H / 2 };
 
   function randomRange(min, max) { return min + Math.random() * (max - min); }
@@ -922,7 +927,7 @@
       y += vy * step;
       if (x < 0) { x = 0; vx = -vx * BALL_BOUNCE_DAMP; }
       else if (x > WORLD_W) { x = WORLD_W; vx = -vx * BALL_BOUNCE_DAMP; }
-      if (y > WORLD_H) { y = WORLD_H; vy = -vy * BALL_BOUNCE_DAMP; }
+      if (y > BALL_FLOOR_Y) { y = BALL_FLOOR_Y; vy = -vy * BALL_BOUNCE_DAMP; }
       else if (y < 0) { y = 0; vy = -vy * BALL_BOUNCE_DAMP; }
       t += step;
     }
@@ -954,6 +959,16 @@
   ballBounceSfx.volume = 0.5;
   function playBallBounceSfx() {
     try { ballBounceSfx.currentTime = 0; ballBounceSfx.play().catch(() => {}); } catch { /* ignore */ }
+  }
+  const chargeSfx = new Audio('audio/charge.mp3');
+  chargeSfx.volume = 0.6;
+  function playChargeSfx() {
+    try { chargeSfx.currentTime = 0; chargeSfx.play().catch(() => {}); } catch { /* ignore */ }
+  }
+  const releaseSfx = new Audio('audio/basyuu.mp3');
+  releaseSfx.volume = 0.7;
+  function playReleaseSfx() {
+    try { releaseSfx.currentTime = 0; releaseSfx.play().catch(() => {}); } catch { /* ignore */ }
   }
   let ballLastVx = null;
   let ballLastVy = null; // previous frame's flight velocity, used to detect a wall/floor/ceiling bounce (a sign flip) for piyon.mp3
@@ -1018,7 +1033,7 @@
     if (!ballLandingPending && elapsedMs >= BALL_MAX_FLIGHT_MS) {
       ballLandingPending = true;
       const landedX = clamp(pos.x, AVATAR_W / 2, WORLD_W - AVATAR_W / 2);
-      const landedY = clamp(pos.y, AVATAR_H, WORLD_H);
+      const landedY = clamp(pos.y, 0, BALL_FLOOR_Y);
       const kickAtMs = ballState.kick.atMs;
       db.ref('ball').transaction((current) => {
         if (!current || current.state !== 'flying' || !current.kick || current.kick.atMs !== kickAtMs) return; // already resolved (by us or someone else), or superseded by a newer kick
@@ -1080,20 +1095,54 @@
     const src = avatarById(avatarId).src;
     return src.slice(0, src.lastIndexOf('/'));
   }
-  function flashAvatarPose(uid, poseFile) {
+  // Resolves the <img>, its normal (non-posed) src, and (for remote avatars)
+  // the tracked entry -- shared plumbing for both the brief flash poses and
+  // the persistent "holding the ball" pose.
+  function resolveAvatarPoseTarget(uid) {
     const isMe = uid === myUid;
     const avatarId = isMe ? (profile && profile.avatar) : (remoteAvatars.get(uid) && remoteAvatars.get(uid).avatarId);
     const el = isMe ? myEl : (remoteAvatars.get(uid) && remoteAvatars.get(uid).el);
-    if (!avatarId || !el) return;
-    const img = el.querySelector('.chat-avatar-img');
-    const normalSrc = avatarById(avatarId).src;
-    const entry = isMe ? null : remoteAvatars.get(uid);
+    if (!avatarId || !el) return null;
+    return {
+      img: el.querySelector('.chat-avatar-img'),
+      normalSrc: avatarById(avatarId).src,
+      avatarId,
+      entry: isMe ? null : remoteAvatars.get(uid),
+    };
+  }
+  // Brief reaction pose (throw/kick/hit) that reverts to normal on its own after BALL_POSE_MS.
+  function flashAvatarPose(uid, poseFile) {
+    const target = resolveAvatarPoseTarget(uid);
+    if (!target) return;
+    const { img, normalSrc, avatarId, entry } = target;
     if (entry) entry.poseUntil = performance.now() + BALL_POSE_MS;
     img.onerror = () => { img.onerror = null; img.src = normalSrc; };
     img.src = avatarFolder(avatarId) + '/' + poseFile;
     clearTimeout(img._poseTimer);
     img._poseTimer = setTimeout(() => { img.onerror = null; img.src = normalSrc; }, BALL_POSE_MS);
   }
+  // Persistent pose (currently just "holding the ball") that stays until
+  // releaseAvatarPose() is called -- doesn't revert on a timer.
+  function holdAvatarPose(uid, poseFile) {
+    const target = resolveAvatarPoseTarget(uid);
+    if (!target) return;
+    const { img, normalSrc, avatarId, entry } = target;
+    clearTimeout(img._poseTimer);
+    if (entry) entry.poseUntil = Infinity; // keep updateRemoteAvatar from syncing this back to normal while it's held
+    img.onerror = () => { img.onerror = null; img.src = normalSrc; };
+    img.src = avatarFolder(avatarId) + '/' + poseFile;
+  }
+  function releaseAvatarPose(uid) {
+    const target = resolveAvatarPoseTarget(uid);
+    if (!target) return;
+    const { img, normalSrc, entry } = target;
+    clearTimeout(img._poseTimer);
+    if (entry) entry.poseUntil = 0;
+    img.onerror = null;
+    img.src = normalSrc;
+  }
+
+  let ballHoldPoseUid = null; // who currently has the persistent "holding the ball" pose active, if anyone
 
   function attachBallListener() {
     const ballRef = db.ref('ball');
@@ -1104,6 +1153,14 @@
       const isNewCatch = data && data.state === 'held' && data.heldBy
         && (!ballState || ballState.state !== 'held' || ballState.heldBy !== data.heldBy);
       ballState = data;
+
+      // release the held-pose the moment the ball is no longer held by that
+      // person, for any reason (thrown, dropped/reset, they disconnected)
+      if (ballHoldPoseUid && (!data || data.state !== 'held' || data.heldBy !== ballHoldPoseUid)) {
+        releaseAvatarPose(ballHoldPoseUid);
+        ballHoldPoseUid = null;
+      }
+
       if (isNewKick) {
         // throw.png is the "throwing a held ball" pose; kick.png is for
         // booting an idle ball off the ground without catching it first.
@@ -1118,15 +1175,166 @@
           ballKickStartPerf = performance.now() - (serverNow - kickAtMs);
         });
       }
-      if (isNewCatch) flashAvatarPose(data.heldBy, 'catch.png');
+      if (isNewCatch) {
+        holdAvatarPose(data.heldBy, 'catch.png');
+        ballHoldPoseUid = data.heldBy;
+      }
       if (!data || data.state !== 'flying') ballKickStartPerf = null;
     });
   }
 
   const actionCatchBtn = document.querySelector('#chatActionPad [data-act="catch"]');
   const actionKickBtn = document.querySelector('#chatActionPad [data-act="kick"]');
-  actionCatchBtn && actionCatchBtn.addEventListener('click', handleCatchButton);
   actionKickBtn && actionKickBtn.addEventListener('click', handleKickButton);
+
+  /* ========================================================================
+     CHARGE / RELEASE POSE (long-press ○) -- unrelated to the ball, works
+     regardless of whether you're holding one. Holding ○ for CHARGE_HOLD_MS
+     starts a shared, synced charge-up animation (1.png..6.png, holding on 6
+     for as long as it's held); releasing plays the release pose (7.png
+     onward) then reverts. Same "broadcast just the start/release event,
+     replay it deterministically from elapsed time" trick as the ball/rhythm
+     game -- no per-frame network traffic.
+     ======================================================================== */
+  const CHARGE_HOLD_MS = 2000;
+  const CHARGE_FRAME_MS = 150;
+  const CHARGE_FRAME_COUNT = 6;
+  const RELEASE_FRAME_START = 7;
+  const RELEASE_FRAME_END = 14;
+  const RELEASE_FRAME_MS = 90;
+
+  const chargeAnimTimers = new Map(); // uid -> pending setTimeout id
+  const chargeKnown = new Map(); // uid -> last known {startAt, releasedAt}, to detect new starts/releases
+
+  function setAvatarChargeFrame(uid, frameNum) {
+    const target = resolveAvatarPoseTarget(uid);
+    if (!target) return;
+    const { img, normalSrc, avatarId, entry } = target;
+    if (entry) entry.poseUntil = Infinity; // keep updateRemoteAvatar from fighting the in-progress charge frames
+    img.onerror = () => { img.onerror = null; img.src = normalSrc; };
+    img.src = avatarFolder(avatarId) + '/' + frameNum + '.png';
+  }
+
+  function beginChargeAnimation(uid, startAtMs) {
+    const existingTimer = chargeAnimTimers.get(uid);
+    if (existingTimer) clearTimeout(existingTimer);
+    getServerNow().then((serverNow) => {
+      const latest = chargeKnown.get(uid);
+      if (!latest || latest.startAt !== startAtMs) return; // superseded by a newer start/release already
+      playChargeSfx();
+      const startPerf = performance.now() - (serverNow - startAtMs);
+      const tick = () => {
+        const elapsed = performance.now() - startPerf;
+        const frame = Math.min(CHARGE_FRAME_COUNT, 1 + Math.floor(elapsed / CHARGE_FRAME_MS));
+        setAvatarChargeFrame(uid, frame);
+        chargeAnimTimers.set(uid, setTimeout(tick, CHARGE_FRAME_MS / 2));
+      };
+      tick();
+    });
+  }
+
+  // Plays 7.png..14.png in sequence (the release/fire burst), then reverts
+  // to the normal sprite.
+  function runReleaseAnimation(uid) {
+    const existingTimer = chargeAnimTimers.get(uid);
+    if (existingTimer) clearTimeout(existingTimer);
+    let frame = RELEASE_FRAME_START;
+    const step = () => {
+      if (frame > RELEASE_FRAME_END) {
+        chargeAnimTimers.delete(uid);
+        releaseAvatarPose(uid);
+        return;
+      }
+      setAvatarChargeFrame(uid, frame);
+      frame++;
+      chargeAnimTimers.set(uid, setTimeout(step, RELEASE_FRAME_MS));
+    };
+    step();
+  }
+
+  function endChargeAnimation(uid) {
+    playReleaseSfx();
+    runReleaseAnimation(uid);
+  }
+
+  function stopChargeAnimNoRelease(uid) {
+    const timer = chargeAnimTimers.get(uid);
+    if (timer) { clearTimeout(timer); chargeAnimTimers.delete(uid); }
+    chargeKnown.delete(uid);
+    releaseAvatarPose(uid);
+  }
+
+  function handleChargeUpdate(uid, data) {
+    if (!data) return;
+    const prev = chargeKnown.get(uid);
+    // the very first time we see this uid's node (e.g. right after attaching
+    // on room entry) and it's already got a releasedAt, it's a leftover from
+    // a past completed cycle, not something happening now -- record it
+    // without replaying it (this is also why stopCharging() below cleans the
+    // node up a little while after release, as belt-and-suspenders).
+    const isStaleHistorical = !prev && data.releasedAt;
+    const isNewStart = !prev || prev.startAt !== data.startAt;
+    const isNewRelease = data.releasedAt && (!prev || prev.releasedAt !== data.releasedAt);
+    chargeKnown.set(uid, data);
+    if (isStaleHistorical) return;
+    if (isNewStart) beginChargeAnimation(uid, data.startAt);
+    if (isNewRelease) endChargeAnimation(uid);
+  }
+
+  function attachChargeListener() {
+    const chargeRoot = db.ref('charge');
+    chargeRoot.on('child_added', (snap) => handleChargeUpdate(snap.key, snap.val()));
+    chargeRoot.on('child_changed', (snap) => handleChargeUpdate(snap.key, snap.val()));
+    chargeRoot.on('child_removed', (snap) => stopChargeAnimNoRelease(snap.key));
+  }
+
+  function startCharging() {
+    if (!myUid) return;
+    getServerNow().then((serverNow) => {
+      db.ref('charge/' + myUid).set({ startAt: serverNow });
+      db.ref('charge/' + myUid).onDisconnect().remove();
+    });
+  }
+  function stopCharging() {
+    if (!myUid) return;
+    const myUidAtRelease = myUid;
+    getServerNow().then((serverNow) => {
+      db.ref('charge/' + myUidAtRelease).update({ releasedAt: serverNow });
+      db.ref('charge/' + myUidAtRelease).onDisconnect().cancel();
+      // clean up once the release animation has had time to play out for
+      // everyone, so this cycle doesn't linger and get mistaken for a fresh
+      // event by the next client that attaches the listener (e.g. a reload)
+      const releaseDurationMs = (RELEASE_FRAME_END - RELEASE_FRAME_START + 1) * RELEASE_FRAME_MS + 500;
+      setTimeout(() => { db.ref('charge/' + myUidAtRelease).remove(); }, releaseDurationMs);
+    });
+  }
+
+  // ○ needs to tell a quick tap (catch/throw) apart from a 2s+ hold (charge)
+  // on the very same button -- same press/hold-timer/suppress-the-click
+  // pattern already used for dragging popn.png.
+  let catchLongPressTimer = null;
+  let catchIsLongPress = false;
+  if (actionCatchBtn) {
+    actionCatchBtn.addEventListener('pointerdown', () => {
+      catchIsLongPress = false;
+      clearTimeout(catchLongPressTimer);
+      catchLongPressTimer = setTimeout(() => {
+        catchIsLongPress = true;
+        startCharging();
+      }, CHARGE_HOLD_MS);
+    });
+    const endCatchPress = () => {
+      clearTimeout(catchLongPressTimer);
+      if (catchIsLongPress) stopCharging();
+    };
+    actionCatchBtn.addEventListener('pointerup', endCatchPress);
+    actionCatchBtn.addEventListener('pointerleave', endCatchPress);
+    actionCatchBtn.addEventListener('pointercancel', endCatchPress);
+    actionCatchBtn.addEventListener('click', () => {
+      if (catchIsLongPress) { catchIsLongPress = false; return; } // this click followed a charge -- don't also catch/throw
+      handleCatchButton();
+    });
+  }
 
   /* ---------- movement input ---------- */
   window.addEventListener('keydown', (e) => {
@@ -1453,6 +1661,7 @@
         attachPresenceListeners();
         attachRhythmGameListener();
         attachBallListener();
+        attachChargeListener();
       }
       attachLogListener(); // fresh each entry so old messages never show up
       if (!loopStarted) { loopStarted = true; requestAnimationFrame(loop); }
