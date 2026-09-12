@@ -15,10 +15,10 @@
     { rank: 'C', min: 0 },
   ];
   const RESULT_LINES = {
-    S: { name: 'OZ', img: 'img/OZ_kawaii.png', line: 'すごい！めっちゃうまいじゃん！' },
-    A: { name: 'YUU', img: 'img/YUU_kawaii.png', line: 'おっ、やるじゃん！その調子！' },
-    B: { name: 'OZ', img: 'img/OZ_kawaii.png', line: 'なかなかいい感じ！もっといけるよ！' },
-    C: { name: 'YUU', img: 'img/YUU_kawaii.png', line: 'まあまあかな。次はがんばろう！' },
+    S: { name: 'OZ', img: 'img/OZ_kawaii/OZ_kawaii.png', line: 'すごい！めっちゃうまいじゃん！' },
+    A: { name: 'YUU', img: 'img/YUU_kawaii/YUU_kawaii.png', line: 'おっ、やるじゃん！その調子！' },
+    B: { name: 'OZ', img: 'img/OZ_kawaii/OZ_kawaii.png', line: 'なかなかいい感じ！もっといけるよ！' },
+    C: { name: 'YUU', img: 'img/YUU_kawaii/YUU_kawaii.png', line: 'まあまあかな。次はがんばろう！' },
   };
   const LEADERBOARD_COLLECTION = 'leaderboard';
   const LEADERBOARD_MAX = 20;

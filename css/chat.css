@@ -159,6 +159,29 @@ body{ min-height: calc(100dvh + 1px); overflow-x: hidden; }
   25%{ filter: drop-shadow(0 6px 10px rgba(0,0,0,0.45)) drop-shadow(0 0 10px rgba(0,224,255,0.95)) drop-shadow(0 0 22px rgba(0,224,255,0.75)); }
   100%{ filter: drop-shadow(0 6px 10px rgba(0,0,0,0.45)) drop-shadow(0 0 0 rgba(0,224,255,0)); }
 }
+.chat-avatar.is-ball-hit .chat-avatar-img{ animation: chatBallHitShake 0.35s ease-out; }
+@keyframes chatBallHitShake{
+  0%{ transform: translateX(0) rotate(0deg); }
+  20%{ transform: translateX(-6%) rotate(-6deg); }
+  40%{ transform: translateX(5%) rotate(5deg); }
+  60%{ transform: translateX(-4%) rotate(-3deg); }
+  80%{ transform: translateX(3%) rotate(2deg); }
+  100%{ transform: translateX(0) rotate(0deg); }
+}
+
+.room-ball{
+  position: absolute;
+  width: 44px;
+  height: 44px;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  background: url('../img/white_ball.png') center / contain no-repeat;
+  filter: drop-shadow(0 4px 8px rgba(0,0,0,0.4)) drop-shadow(0 0 8px rgba(255,255,255,0.3));
+  z-index: 6;
+  pointer-events: none;
+}
+.room-ball.is-flying{ animation: roomBallSpin 0.5s linear infinite; }
+@keyframes roomBallSpin{ from{ transform: translate(-50%, -50%) rotate(0deg); } to{ transform: translate(-50%, -50%) rotate(360deg); } }
 .chat-avatar-name{
   margin-top: 2px;
   font-size: 11px;
@@ -224,6 +247,29 @@ body{ min-height: calc(100dvh + 1px); overflow-x: hidden; }
 .chat-dpad [data-dir="left"]{ grid-column: 1; grid-row: 2; }
 .chat-dpad [data-dir="right"]{ grid-column: 3; grid-row: 2; }
 .chat-dpad [data-dir="down"]{ grid-column: 2; grid-row: 2; }
+
+/* ---------- ball catch/kick buttons ---------- */
+.chat-action-pad{
+  position: absolute;
+  left: calc(max(16px, env(safe-area-inset-left)) + 122px);
+  bottom: max(16px, env(safe-area-inset-bottom));
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  z-index: 10;
+  opacity: 0.85;
+}
+.chat-action-pad button{
+  width: 40px; height: 40px;
+  border-radius: 50%;
+  background: rgba(6,20,52,0.6);
+  font-weight: 700;
+  font-size: 15px;
+  cursor: pointer;
+  touch-action: none;
+}
+.chat-action-pad [data-act="catch"]{ color: var(--cyan); border: 1px solid var(--cyan); }
+.chat-action-pad [data-act="kick"]{ color: var(--pink); border: 1px solid var(--pink); }
 
 /* ---------- log + message input: one small translucent panel, bottom-right ---------- */
 .chat-log, .chat-input-row{

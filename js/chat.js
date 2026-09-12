@@ -10,21 +10,22 @@
   window.addEventListener('orientationchange', () => setTimeout(collapseAddressBar, 300));
 
   const AVATARS = [
-    { id: 'a', name: 'A', src: 'img/A.png', gender: 'male' },
-    { id: 'b', name: 'B', src: 'img/B.png', gender: 'male' },
-    { id: 'c', name: 'C', src: 'img/C.png', gender: 'male' },
-    { id: 'd', name: 'D', src: 'img/D.png', gender: 'male' },
-    { id: 'e', name: 'E', src: 'img/E.png', gender: 'male' },
-    { id: 'f', name: 'F', src: 'img/F.png', gender: 'male' },
-    { id: 'g', name: 'G', src: 'img/G.png', gender: 'male' },
-    { id: 'h', name: 'H', src: 'img/H.png', gender: 'female' },
-    { id: 'i', name: 'I', src: 'img/I.png', gender: 'female' },
-    { id: 'j', name: 'J', src: 'img/J.png', gender: 'female' },
-    { id: 'k', name: 'K', src: 'img/K.png', gender: 'female' },
-    { id: 'l', name: 'L', src: 'img/L.png', gender: 'female' },
-    { id: 'm', name: 'M', src: 'img/M.png', gender: 'female' },
-    { id: 'oz', name: 'OZ', src: 'img/OZ_kawaii.png', restricted: true },
-    { id: 'yuu', name: 'YUU', src: 'img/YUU_kawaii.png', restricted: true },
+    { id: 'a', name: 'A', src: 'img/A/A.png', gender: 'male' },
+    { id: 'b', name: 'B', src: 'img/B/B.png', gender: 'male' },
+    { id: 'c', name: 'C', src: 'img/C/C.png', gender: 'male' },
+    { id: 'd', name: 'D', src: 'img/D/D.png', gender: 'male' },
+    { id: 'e', name: 'E', src: 'img/E/E.png', gender: 'male' },
+    { id: 'f', name: 'F', src: 'img/F/F.png', gender: 'male' },
+    { id: 'g', name: 'G', src: 'img/G/G.png', gender: 'male' },
+    { id: 'h', name: 'H', src: 'img/H/H.png', gender: 'female' },
+    { id: 'i', name: 'I', src: 'img/I/I.png', gender: 'female' },
+    { id: 'j', name: 'J', src: 'img/J/J.png', gender: 'female' },
+    { id: 'k', name: 'K', src: 'img/K/K.png', gender: 'female' },
+    { id: 'l', name: 'L', src: 'img/L/L.png', gender: 'female' },
+    { id: 'm', name: 'M', src: 'img/M/M.png', gender: 'female' },
+    { id: 'n', name: 'N', src: 'img/N/N.png', gender: 'female' },
+    { id: 'oz', name: 'OZ', src: 'img/OZ_kawaii/OZ_kawaii.png', restricted: true },
+    { id: 'yuu', name: 'YUU', src: 'img/YUU_kawaii/YUU_kawaii.png', restricted: true },
   ];
   // Gender categories for the picker's tab buttons. Add more entries here
   // (and tag avatars with the matching `gender`) once other genders have art.
@@ -881,6 +882,252 @@
     });
   }
 
+  /* ========================================================================
+     ROOM BALL (catch / kick) -- a shared toy sitting in the room. Pressing
+     catch near it picks it up (it follows whoever's holding it); pressing
+     kick sends it flying in whichever way you're currently facing. Only the
+     kick EVENT (start position/velocity/time) travels over Firebase, like
+     the rhythm chart's timing -- every client then derives the ball's
+     flight position locally from that, so there's no need to broadcast its
+     position every frame. Getting hit is cosmetic only (a little shake +
+     sound); it never affects movement, so small cross-client disagreement
+     about an exact hit doesn't matter.
+     ======================================================================== */
+  const BALL_SIZE = 44;
+  const BALL_CATCH_RADIUS = AVATAR_W * 0.9;
+  const BALL_KICK_RADIUS = AVATAR_W * 0.9;
+  const BALL_KICK_SPEED = 520; // world units / second
+  const BALL_GRAVITY = 900; // world units / s^2, pulls the ball back down toward the floor
+  const BALL_BOUNCE_DAMP = 0.55; // speed kept after each wall/floor bounce
+  const BALL_MAX_FLIGHT_MS = 3200; // long enough to let it bounce a few times before it's declared landed
+  const BALL_HIT_RADIUS = AVATAR_W * 0.6;
+  const BALL_DEFAULT_POS = { x: WORLD_W / 2, y: WORLD_H / 2 };
+
+  function randomRange(min, max) { return min + Math.random() * (max - min); }
+
+  // Deterministic bounce-physics replay: given the kick's starting
+  // position/velocity and how much time has passed, step a simple
+  // gravity+bounce simulation forward with a fixed timestep. Every client
+  // runs the exact same arithmetic on the exact same inputs, so they all
+  // land on the same position at any given moment without needing the
+  // ball's position broadcast frame-by-frame -- only the kick itself synced.
+  function simulateBallFlight(kick, elapsedSec) {
+    const dt = 1 / 90;
+    let x = kick.fromX, y = kick.fromY, vx = kick.vx, vy = kick.vy;
+    let t = 0;
+    while (t < elapsedSec) {
+      const step = Math.min(dt, elapsedSec - t);
+      vy += BALL_GRAVITY * step;
+      x += vx * step;
+      y += vy * step;
+      if (x < 0) { x = 0; vx = -vx * BALL_BOUNCE_DAMP; }
+      else if (x > WORLD_W) { x = WORLD_W; vx = -vx * BALL_BOUNCE_DAMP; }
+      if (y > WORLD_H) { y = WORLD_H; vy = -vy * BALL_BOUNCE_DAMP; }
+      else if (y < 0) { y = 0; vy = -vy * BALL_BOUNCE_DAMP; }
+      t += step;
+    }
+    return { x, y, vx, vy };
+  }
+
+  const ballEl = document.createElement('div');
+  ballEl.className = 'room-ball';
+  ballEl.style.width = BALL_SIZE + 'px';
+  ballEl.style.height = BALL_SIZE + 'px';
+  stage.appendChild(ballEl);
+
+  const ballHitSfx = new Audio('audio/poko.mp3');
+  ballHitSfx.volume = 0.6;
+  function playBallHitSfx() {
+    try { ballHitSfx.currentTime = 0; ballHitSfx.play().catch(() => {}); } catch { /* ignore */ }
+  }
+  const ballThrowSfx = new Audio('audio/syu!.mp3');
+  ballThrowSfx.volume = 0.6;
+  function playBallThrowSfx() {
+    try { ballThrowSfx.currentTime = 0; ballThrowSfx.play().catch(() => {}); } catch { /* ignore */ }
+  }
+  const ballKickSfx = new Audio('audio/bon.mp3');
+  ballKickSfx.volume = 0.6;
+  function playBallKickSfx() {
+    try { ballKickSfx.currentTime = 0; ballKickSfx.play().catch(() => {}); } catch { /* ignore */ }
+  }
+  const ballBounceSfx = new Audio('audio/piyon.mp3');
+  ballBounceSfx.volume = 0.5;
+  function playBallBounceSfx() {
+    try { ballBounceSfx.currentTime = 0; ballBounceSfx.play().catch(() => {}); } catch { /* ignore */ }
+  }
+  let ballLastVx = null;
+  let ballLastVy = null; // previous frame's flight velocity, used to detect a wall/floor/ceiling bounce (a sign flip) for piyon.mp3
+
+  let ballState = null; // latest value from Firebase: { state: 'idle'|'held'|'flying', x, y, heldBy, kick }
+  let ballKickStartPerf = null; // performance.now() anchor matching ballState.kick.atMs (recomputed whenever a new kick shows up)
+  let ballHitAvatars = new Set(); // avatars already reacted-to during the current flight, so one pass doesn't re-trigger every frame
+  let ballLandingPending = false; // guards against spamming the "it landed" transaction every frame while waiting for Firebase to catch up
+
+  function ballPositionNow() {
+    if (!ballState) return BALL_DEFAULT_POS;
+    if (ballState.state === 'held') {
+      if (ballState.heldBy === myUid && myEl) return { x: myState.x, y: myState.y - AVATAR_H * 0.5 };
+      const entry = remoteAvatars.get(ballState.heldBy);
+      if (entry) return { x: entry.curX, y: entry.curY - AVATAR_H * 0.5 };
+      return { x: ballState.x ?? BALL_DEFAULT_POS.x, y: ballState.y ?? BALL_DEFAULT_POS.y }; // holder unknown (maybe already left) -- fall back
+    }
+    if (ballState.state === 'flying' && ballState.kick && ballKickStartPerf !== null) {
+      const elapsedSec = Math.max(0, (performance.now() - ballKickStartPerf) / 1000);
+      const sim = simulateBallFlight(ballState.kick, elapsedSec);
+      return { x: sim.x, y: sim.y };
+    }
+    return { x: ballState.x ?? BALL_DEFAULT_POS.x, y: ballState.y ?? BALL_DEFAULT_POS.y };
+  }
+
+  function updateBall(nowPerf) {
+    if (!ballState) return;
+    const pos = ballPositionNow();
+    positionWorldEl(ballEl, pos.x, pos.y);
+    ballEl.classList.toggle('is-flying', ballState.state === 'flying');
+
+    if (ballState.state !== 'flying' || !ballState.kick) { ballLastVx = ballLastVy = null; return; }
+
+    // detect a wall/floor/ceiling bounce as a sign flip in velocity between
+    // consecutive frames -- gravity only ever pushes vy one direction between
+    // bounces, and vx never changes except at a wall, so any reversal here
+    // really is a bounce (not just natural deceleration).
+    const elapsedSec = ballKickStartPerf !== null ? Math.max(0, (nowPerf - ballKickStartPerf) / 1000) : 0;
+    const sim = simulateBallFlight(ballState.kick, elapsedSec);
+    if (ballLastVx !== null && (sim.vx * ballLastVx < 0 || sim.vy * ballLastVy < 0)) playBallBounceSfx();
+    ballLastVx = sim.vx;
+    ballLastVy = sim.vy;
+
+    // cosmetic-only collision reaction -- each client decides this locally
+    // from its own best-known avatar positions, so it's fine if two clients
+    // don't agree down to the pixel on exactly who got bonked.
+    const checkHit = (uid, x, y, el) => {
+      if (uid === ballState.kick.by || ballHitAvatars.has(uid)) return;
+      if (Math.abs(x - pos.x) <= BALL_HIT_RADIUS && Math.abs(y - pos.y) <= AVATAR_H) {
+        ballHitAvatars.add(uid);
+        el.classList.remove('is-ball-hit');
+        void el.offsetWidth; // restart the shake even if it's already mid-animation from a previous hit
+        el.classList.add('is-ball-hit');
+        flashAvatarPose(uid, 'ite.png');
+        playBallHitSfx();
+      }
+    };
+    if (myEl && myUid) checkHit(myUid, myState.x, myState.y, myEl);
+    remoteAvatars.forEach((entry, uid) => checkHit(uid, entry.curX, entry.curY, entry.el));
+
+    const elapsedMs = ballKickStartPerf !== null ? nowPerf - ballKickStartPerf : 0;
+    if (!ballLandingPending && elapsedMs >= BALL_MAX_FLIGHT_MS) {
+      ballLandingPending = true;
+      const landedX = clamp(pos.x, AVATAR_W / 2, WORLD_W - AVATAR_W / 2);
+      const landedY = clamp(pos.y, AVATAR_H, WORLD_H);
+      const kickAtMs = ballState.kick.atMs;
+      db.ref('ball').transaction((current) => {
+        if (!current || current.state !== 'flying' || !current.kick || current.kick.atMs !== kickAtMs) return; // already resolved (by us or someone else), or superseded by a newer kick
+        return { state: 'idle', x: landedX, y: landedY, heldBy: null, kick: null };
+      }).finally(() => { ballLandingPending = false; });
+    }
+  }
+
+  // A kick and a throw both launch the ball with a randomized pop of
+  // speed/height baked into the shared kick event itself -- so the bounce
+  // physics play out the same for everyone, but no two throws look alike.
+  function launchBall(fromHeld) {
+    const vx = (myState.facing === 'left' ? -1 : 1) * randomRange(BALL_KICK_SPEED * 0.75, BALL_KICK_SPEED * 1.25);
+    const vy = -randomRange(280, 520); // negative = an initial upward pop before gravity takes over
+    getServerNow().then((serverNow) => {
+      db.ref('ball').transaction((current) => {
+        if (!current) return;
+        if (fromHeld && current.heldBy !== myUid) return; // lost the ball in the meantime
+        if (!fromHeld && current.state !== 'idle') return; // someone beat us to it
+        return {
+          state: 'flying',
+          heldBy: null,
+          x: null,
+          y: null,
+          kick: { fromX: myState.x, fromY: myState.y, vx, vy, atMs: serverNow, by: myUid, thrown: fromHeld },
+        };
+      });
+    });
+  }
+
+  // ○: catch a nearby ball, or -- if already holding it -- throw it (a
+  // second press toggles catch into throw, per spec).
+  function handleCatchButton() {
+    if (!myEl || !myUid || !ballState) return;
+    if (ballState.heldBy === myUid) { launchBall(true); return; }
+    const pos = ballPositionNow();
+    if (Math.hypot(myState.x - pos.x, myState.y - pos.y) > BALL_CATCH_RADIUS) return;
+    db.ref('ball').transaction((current) => {
+      if (!current || current.heldBy) return; // someone already has it
+      return { state: 'held', heldBy: myUid, x: null, y: null, kick: null };
+    });
+  }
+
+  // ✕: kick a ball resting on the ground directly, without catching it first.
+  function handleKickButton() {
+    if (!myEl || !myUid || !ballState) return;
+    if (ballState.state !== 'idle') return; // can't kick one that's held or already flying
+    const pos = ballPositionNow();
+    if (Math.hypot(myState.x - pos.x, myState.y - pos.y) > BALL_KICK_RADIUS) return;
+    launchBall(false);
+  }
+
+  // catch.png / throw.png live alongside each avatar's normal image (same
+  // folder), so everyone in the room -- not just the one pressing the
+  // button -- briefly sees that pose, driven entirely off the shared ball
+  // state (no extra network event needed for "pose" itself).
+  const BALL_POSE_MS = 450;
+  function avatarFolder(avatarId) {
+    const src = avatarById(avatarId).src;
+    return src.slice(0, src.lastIndexOf('/'));
+  }
+  function flashAvatarPose(uid, poseFile) {
+    const isMe = uid === myUid;
+    const avatarId = isMe ? (profile && profile.avatar) : (remoteAvatars.get(uid) && remoteAvatars.get(uid).avatarId);
+    const el = isMe ? myEl : (remoteAvatars.get(uid) && remoteAvatars.get(uid).el);
+    if (!avatarId || !el) return;
+    const img = el.querySelector('.chat-avatar-img');
+    const normalSrc = avatarById(avatarId).src;
+    const entry = isMe ? null : remoteAvatars.get(uid);
+    if (entry) entry.poseUntil = performance.now() + BALL_POSE_MS;
+    img.onerror = () => { img.onerror = null; img.src = normalSrc; };
+    img.src = avatarFolder(avatarId) + '/' + poseFile;
+    clearTimeout(img._poseTimer);
+    img._poseTimer = setTimeout(() => { img.onerror = null; img.src = normalSrc; }, BALL_POSE_MS);
+  }
+
+  function attachBallListener() {
+    const ballRef = db.ref('ball');
+    ballRef.transaction((current) => current || { state: 'idle', x: BALL_DEFAULT_POS.x, y: BALL_DEFAULT_POS.y, heldBy: null, kick: null });
+    ballRef.on('value', (snap) => {
+      const data = snap.val();
+      const isNewKick = data && data.kick && (!ballState || !ballState.kick || ballState.kick.atMs !== data.kick.atMs);
+      const isNewCatch = data && data.state === 'held' && data.heldBy
+        && (!ballState || ballState.state !== 'held' || ballState.heldBy !== data.heldBy);
+      ballState = data;
+      if (isNewKick) {
+        // throw.png is the "throwing a held ball" pose; kick.png is for
+        // booting an idle ball off the ground without catching it first.
+        flashAvatarPose(data.kick.by, data.kick.thrown ? 'throw.png' : 'kick.png');
+        if (data.kick.thrown) playBallThrowSfx(); else playBallKickSfx();
+        ballHitAvatars = new Set();
+        ballLandingPending = false;
+        ballLastVx = ballLastVy = null; // fresh flight -- don't compare its first velocity against the previous flight's trailing one
+        const kickAtMs = data.kick.atMs;
+        getServerNow().then((serverNow) => {
+          if (!ballState || !ballState.kick || ballState.kick.atMs !== kickAtMs) return; // superseded already
+          ballKickStartPerf = performance.now() - (serverNow - kickAtMs);
+        });
+      }
+      if (isNewCatch) flashAvatarPose(data.heldBy, 'catch.png');
+      if (!data || data.state !== 'flying') ballKickStartPerf = null;
+    });
+  }
+
+  const actionCatchBtn = document.querySelector('#chatActionPad [data-act="catch"]');
+  const actionKickBtn = document.querySelector('#chatActionPad [data-act="kick"]');
+  actionCatchBtn && actionCatchBtn.addEventListener('click', handleCatchButton);
+  actionKickBtn && actionKickBtn.addEventListener('click', handleKickButton);
+
   /* ---------- movement input ---------- */
   window.addEventListener('keydown', (e) => {
     if (document.activeElement && ['INPUT', 'TEXTAREA'].includes(document.activeElement.tagName)) return;
@@ -970,6 +1217,7 @@
     });
 
     if (rhythmState && rhythmState.started && !rhythmState.ended) updateRhythmGame(now);
+    updateBall(now);
 
     requestAnimationFrame(loop);
   }
@@ -984,9 +1232,12 @@
   function updateRemoteAvatar(uid, data) {
     const entry = remoteAvatars.get(uid);
     if (!entry || !data) return;
+    entry.avatarId = data.avatar;
     const a = avatarById(data.avatar);
     const img = entry.el.querySelector('.chat-avatar-img');
-    if (img.getAttribute('src') !== a.src) img.src = a.src;
+    // skip while a catch/throw pose is actively showing (see flashAvatarPose)
+    // so this doesn't stomp it back to the normal sprite mid-pose
+    if ((!entry.poseUntil || performance.now() > entry.poseUntil) && img.getAttribute('src') !== a.src) img.src = a.src;
     entry.el.querySelector('.chat-avatar-name').textContent = data.name || '';
 
     const newX = data.x || 0;
@@ -1201,6 +1452,7 @@
         listenersAttached = true;
         attachPresenceListeners();
         attachRhythmGameListener();
+        attachBallListener();
       }
       attachLogListener(); // fresh each entry so old messages never show up
       if (!loopStarted) { loopStarted = true; requestAnimationFrame(loop); }
