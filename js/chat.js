@@ -372,6 +372,10 @@
   const RHYTHM_PREROLL_MS = 3200; // gap between "song picked" and the first note actually falling -- gives every client time to decode+chart the track and count in together
   const RHYTHM_LANES = 5;
   const RHYTHM_NOTE_FALL_MS = 1500; // time a note takes to fall from the top of the room to the hit line
+  const RHYTHM_HIT_LINE_Y = WORLD_H - AVATAR_H * 0.45; // roughly chest height -- catches are decided and vanish here instead of down at the feet
+  const RHYTHM_MISS_FALL_MS = 260; // extra fall time for a miss to keep dropping from the catch line down to the floor
+  const RHYTHM_MISS_FADE_MS = 150; // matches .rhythm-note.is-miss's CSS transition duration
+  const RHYTHM_HIT_FADE_MS = 200; // matches .rhythm-note.is-hit's CSS transition duration (with a little margin)
   const RHYTHM_HIT_TOLERANCE = AVATAR_W * 0.7;
   const RHYTHM_NOTE_SIZE = 42;
   const RHYTHM_STALE_GRACE_MS = 2000;
@@ -386,6 +390,7 @@
   }
   const rhythmAudio = new Audio();
   rhythmAudio.preload = 'auto';
+  rhythmAudio.volume = 0.5;
 
   const rhythmChartCache = new Map(); // song id -> Promise<{ chart, durationMs }>
 
@@ -451,7 +456,9 @@
         lastFrameIdx = f;
       }
     }
-    return chart;
+    // thin the detected onsets down to half -- keeps the same timing feel
+    // without doubling every other beat, just fewer notes overall.
+    return chart.filter((_, i) => i % 2 === 0);
   }
 
   function analyzeSong(song) {
@@ -601,6 +608,13 @@
     clearTimeout(popnLongPressTimer);
     popnLongPressTimer = setTimeout(startPopnDrag, POPN_LONG_PRESS_MS);
 
+    // Capture the pointer on the button itself so every subsequent move/up
+    // for this gesture keeps routing here even if the button has already
+    // been dragged underneath some other overlay (dpad, chat log, etc.) --
+    // otherwise a drag that ends up behind another element could get its
+    // release event "stolen", leaving the drag stuck or unable to restart.
+    try { popnBtn.setPointerCapture(e.pointerId); } catch { /* ignore */ }
+
     const onMove = (ev) => {
       if (popnDragging) {
         popnPos = clientToWorld(ev.clientX, ev.clientY);
@@ -612,13 +626,14 @@
     const onUp = () => {
       clearTimeout(popnLongPressTimer);
       endPopnDrag();
-      window.removeEventListener('pointermove', onMove);
-      window.removeEventListener('pointerup', onUp);
-      window.removeEventListener('pointercancel', onUp);
+      try { popnBtn.releasePointerCapture(e.pointerId); } catch { /* ignore */ }
+      popnBtn.removeEventListener('pointermove', onMove);
+      popnBtn.removeEventListener('pointerup', onUp);
+      popnBtn.removeEventListener('pointercancel', onUp);
     };
-    window.addEventListener('pointermove', onMove);
-    window.addEventListener('pointerup', onUp);
-    window.addEventListener('pointercancel', onUp);
+    popnBtn.addEventListener('pointermove', onMove);
+    popnBtn.addEventListener('pointerup', onUp);
+    popnBtn.addEventListener('pointercancel', onUp);
   });
 
   popnBtn.addEventListener('click', () => {
@@ -803,24 +818,45 @@
     }
 
     st.notes = st.notes.filter((n) => {
-      const startMs = n.hitTime * 1000 - RHYTHM_NOTE_FALL_MS;
-      const progress = (elapsedMs - startMs) / RHYTHM_NOTE_FALL_MS;
-      const y = clamp(progress, 0, 1) * WORLD_H;
-      positionWorldEl(n.el, n.laneX, y);
-      if (!n.judged && progress >= 0.97) {
-        n.judged = true;
-        const catchers = avatarsNearLane(n.laneX);
-        if (catchers.length) {
-          st.score++;
-          rhythmScoreValEl.textContent = String(st.score);
-          n.el.classList.add('is-hit');
-          catchers.forEach(flashAvatarCatch);
-          playPon();
-        } else {
-          n.el.classList.add('is-miss');
+      if (!n.judged) {
+        // falling phase: rises toward RHYTHM_HIT_LINE_Y (around chest height)
+        // -- that's where a catch is decided, not down at the feet/floor.
+        const startMs = n.hitTime * 1000 - RHYTHM_NOTE_FALL_MS;
+        const rawProgress = (elapsedMs - startMs) / RHYTHM_NOTE_FALL_MS;
+        positionWorldEl(n.el, n.laneX, clamp(rawProgress, 0, 1) * RHYTHM_HIT_LINE_Y);
+        if (rawProgress >= 1) {
+          n.judged = true;
+          n.judgedAtMs = elapsedMs;
+          const catchers = avatarsNearLane(n.laneX);
+          if (catchers.length) {
+            n.missed = false;
+            st.score++;
+            rhythmScoreValEl.textContent = String(st.score);
+            n.el.classList.add('is-hit');
+            catchers.forEach(flashAvatarCatch);
+            playPon();
+          } else {
+            n.missed = true;
+          }
         }
+        return true;
       }
-      if (progress >= 1.2) { n.el.remove(); return false; }
+
+      if (n.missed) {
+        // a miss keeps falling the rest of the way to the floor instead of
+        // vanishing at chest height like a catch does, so it still reads as
+        // "dropped" rather than "caught".
+        const fallProgress = clamp((elapsedMs - n.judgedAtMs) / RHYTHM_MISS_FALL_MS, 0, 1);
+        positionWorldEl(n.el, n.laneX, RHYTHM_HIT_LINE_Y + (WORLD_H - RHYTHM_HIT_LINE_Y) * fallProgress);
+        if (fallProgress >= 1) {
+          if (!n.el.classList.contains('is-miss')) n.el.classList.add('is-miss'); // trigger the fade-out only once it lands
+          if (elapsedMs - n.judgedAtMs >= RHYTHM_MISS_FALL_MS + RHYTHM_MISS_FADE_MS) { n.el.remove(); return false; }
+        }
+        return true;
+      }
+
+      // caught -- frozen at the chest-height catch point, just fading out
+      if (elapsedMs - n.judgedAtMs >= RHYTHM_HIT_FADE_MS) { n.el.remove(); return false; }
       return true;
     });
 

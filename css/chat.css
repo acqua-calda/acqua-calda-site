@@ -408,7 +408,7 @@ body{ min-height: calc(100dvh + 1px); overflow-x: hidden; }
   padding: 0;
   cursor: pointer;
   touch-action: none;
-  z-index: 6;
+  z-index: 21; /* above the dpad (10) and the log/input panel (20) so it can't get dragged into a dead zone it can no longer be grabbed from */
   filter: drop-shadow(0 4px 10px rgba(0,0,0,0.5));
   animation: popnBob 2.2s ease-in-out infinite;
 }
