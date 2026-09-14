@@ -1205,10 +1205,9 @@
      the ball/rhythm game -- no per-frame network traffic.
      ======================================================================== */
   const CHARGE_HOLD_MS = 2000;
-  const BEAM_GROW_MS = 220;
-  const BEAM_HOLD_MS = 260;
+  const BEAM_HOLD_MS = 480; // beam shown at full size before fading
   const BEAM_FADE_MS = 260;
-  const BEAM_TOTAL_MS = BEAM_GROW_MS + BEAM_HOLD_MS + BEAM_FADE_MS;
+  const BEAM_TOTAL_MS = BEAM_HOLD_MS + BEAM_FADE_MS;
   const BEAM_MAX_WIDTH_PCT = 24; // beam length as % of the room stage's width
 
   // Where the hands sit within each pose image, as a fraction of the avatar
@@ -1286,26 +1285,26 @@
     stage.appendChild(flareEl);
 
     chargeFx.set(uid, { glowEl: null, beamEl, flareEl });
-    // grow -> hold -> fade. Uses the Web Animations API rather than a CSS
-    // transition triggered from a follow-up style change -- a transition
-    // needs the browser to actually paint the starting state before the
-    // change, which a requestAnimationFrame/setTimeout callback can't
-    // reliably guarantee (e.g. on a backgrounded tab), silently leaving the
-    // beam stuck invisible at zero width. animate() plays immediately.
-    const growEnd = BEAM_GROW_MS / BEAM_TOTAL_MS;
-    const holdEnd = (BEAM_GROW_MS + BEAM_HOLD_MS) / BEAM_TOTAL_MS;
-    beamEl.animate([
-      { transform: 'translateY(-50%) scaleX(0)', opacity: 0, offset: 0 },
-      { transform: 'translateY(-50%) scaleX(1)', opacity: 1, offset: growEnd },
-      { transform: 'translateY(-50%) scaleX(1)', opacity: 1, offset: holdEnd },
-      { transform: 'translateY(-50%) scaleX(1)', opacity: 0, offset: 1 },
-    ], { duration: BEAM_TOTAL_MS, easing: 'ease-out', fill: 'forwards' });
-    flareEl.animate([
-      { transform: 'translate(-50%, -50%) scale(0) rotate(0deg)', opacity: 0, offset: 0 },
-      { transform: 'translate(-50%, -50%) scale(1.3) rotate(20deg)', opacity: 1, offset: growEnd * 0.7 },
-      { transform: 'translate(-50%, -50%) scale(1) rotate(35deg)', opacity: 1, offset: holdEnd },
-      { transform: 'translate(-50%, -50%) scale(1) rotate(55deg)', opacity: 0, offset: 1 },
-    ], { duration: BEAM_TOTAL_MS, easing: 'ease-out', fill: 'forwards' });
+    // Show both at full size/opacity immediately -- no grow-in animation.
+    // An animated grow (via a CSS transition or the Web Animations API)
+    // turned out unreliable here: it depends on the browser committing the
+    // zero-width starting state before the animation begins, which isn't
+    // guaranteed to happen inside the same tick as element creation, and
+    // when it doesn't the beam is left stuck invisible at zero width with
+    // no visible failure. Popping in instantly sidesteps that entirely;
+    // only the fade-out (a plain opacity transition, safe to skip if it
+    // doesn't fire since the element is removed a moment later anyway) is
+    // animated.
+    beamEl.style.opacity = '1';
+    beamEl.style.transform = 'translateY(-50%) scaleX(1)';
+    flareEl.style.opacity = '1';
+    flareEl.style.transform = 'translate(-50%, -50%) scale(1)';
+    setTimeout(() => {
+      beamEl.style.transition = `opacity ${BEAM_FADE_MS}ms ease-in`;
+      flareEl.style.transition = `opacity ${BEAM_FADE_MS}ms ease-in`;
+      beamEl.style.opacity = '0';
+      flareEl.style.opacity = '0';
+    }, BEAM_HOLD_MS);
   }
 
   function setAvatarPoseImage(uid, poseFile, boxClass) {

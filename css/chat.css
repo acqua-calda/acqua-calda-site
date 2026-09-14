@@ -177,12 +177,14 @@ body{ min-height: calc(100dvh + 1px); overflow-x: hidden; }
   0%, 100%{ transform: translate(-50%, -50%) scale(0.85); opacity: 0.75; }
   50%{ transform: translate(-50%, -50%) scale(1.15); opacity: 1; }
 }
-/* The fired beam: grown/faded from JS (chat.js's fireBeam) via transform
-   and opacity, anchored at the firing hand with transform-origin flipped
-   for facing-left so it always shoots outward, never through the body.
-   Thick (roughly half the avatar's own width) with a hot white core and a
-   heavy multi-layer glow so it reads as a solid energy blast, not a laser
-   line. */
+/* The fired beam: chat.js's fireBeam shows it at full size instantly, then
+   fades it out via transform/opacity, anchored at the firing hand with
+   transform-origin flipped for facing-left so it always shoots outward,
+   never through the body. Thick (roughly half the avatar's own width) with
+   a hot white core and a heavy multi-layer glow so it reads as a solid
+   energy blast, not a laser line. The scaleX(0)/opacity:0 below is only a
+   fallback in case JS never gets to set the inline style (e.g. pose image
+   failed to resolve) -- it should never actually be visible mid-animation. */
 .charge-beam{
   position: absolute;
   height: 16%;
@@ -197,17 +199,22 @@ body{ min-height: calc(100dvh + 1px); overflow-x: hidden; }
   transform: translateY(-50%) scaleX(0);
   opacity: 0;
 }
-/* The burst of light where the beam erupts from YUU's hands -- a spiky
-   "flare" rather than a plain circle, for the kamehameha "bursting out"
-   look, popping in right as the beam appears. */
+/* The burst of light where the beam erupts from YUU's hands -- a soft hot
+   flash (not a hard-edged shape -- a literal star/polygon outline reads as
+   a cartoon sparkle icon, not an energy blast), popping in as the beam
+   appears via a quick scale+glow pulse. */
 .beam-flare{
   position: absolute;
-  width: 11%;
+  width: 13%;
   aspect-ratio: 1;
+  border-radius: 50%;
   transform: translate(-50%, -50%) scale(0);
-  clip-path: polygon(50% 0%, 61% 35%, 98% 35%, 68% 57%, 79% 91%, 50% 70%, 21% 91%, 32% 57%, 2% 35%, 39% 35%);
-  background: radial-gradient(circle, #fff 0%, #fff 30%, var(--cyan) 55%, rgba(0,224,255,0.4) 75%, transparent 85%);
-  box-shadow: 0 0 1.4vw 0.6vw rgba(0,224,255,0.85);
+  background: radial-gradient(circle, #fff 0%, #fff 25%, var(--cyan) 50%, rgba(0,224,255,0.35) 72%, transparent 85%);
+  box-shadow:
+    0 0 1vw 0.5vw #fff,
+    0 0 2.6vw 1.2vw rgba(0,224,255,0.85),
+    0 0 5vw 2.4vw rgba(0,224,255,0.4);
+  filter: blur(0.5px);
   pointer-events: none;
   z-index: 7;
   opacity: 0;
