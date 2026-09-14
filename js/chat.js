@@ -1208,7 +1208,9 @@
   const BEAM_HOLD_MS = 480; // beam shown at full size before fading
   const BEAM_FADE_MS = 260;
   const BEAM_TOTAL_MS = BEAM_HOLD_MS + BEAM_FADE_MS;
-  const BEAM_MAX_WIDTH_PCT = 24; // beam length as % of the room stage's width
+  const BEAM_MAX_WIDTH_PCT = 72; // beam length as % of the room stage's width
+  const BEAM_HIT_TICKS = 5; // how many times the beam re-checks for a hit while it's out, so a sustained beam can tag someone more than once (unlike the ball's one-shot hit)
+  const BEAM_HIT_Y_TOLERANCE = AVATAR_H; // world units, same generosity as the ball's cosmetic hit check
 
   // Where the hands sit within each pose image, as a fraction of the avatar
   // box's own width/height measured from its bottom-center (the box's
@@ -1246,6 +1248,7 @@
     if (fx.glowEl) fx.glowEl.remove();
     if (fx.beamEl) fx.beamEl.remove();
     if (fx.flareEl) fx.flareEl.remove();
+    if (fx.impactEl) fx.impactEl.remove();
     chargeFx.delete(uid);
   }
 
@@ -1257,7 +1260,30 @@
     glowEl.style.left = pos.leftPct + '%';
     glowEl.style.top = pos.topPct + '%';
     stage.appendChild(glowEl);
-    chargeFx.set(uid, { glowEl, beamEl: null, flareEl: null });
+    chargeFx.set(uid, { glowEl, beamEl: null, flareEl: null, impactEl: null });
+  }
+
+  // Cosmetic-only collision reaction, same spirit as the ball's checkHit:
+  // each client decides this locally from its own best-known avatar
+  // positions, so it's fine if two clients don't quite agree pixel-for-
+  // pixel on who got hit. Called BEAM_HIT_TICKS times while a beam is out
+  // so a sustained beam can tag someone repeatedly rather than just once.
+  function checkBeamHits(shooterUid, originX, originY, facing) {
+    const tipX = originX + (facing === 'left' ? -1 : 1) * (BEAM_MAX_WIDTH_PCT / 100) * WORLD_W;
+    const minX = Math.min(originX, tipX);
+    const maxX = Math.max(originX, tipX);
+    const check = (targetUid, x, y, el) => {
+      if (targetUid === shooterUid) return;
+      if (x >= minX && x <= maxX && Math.abs(y - originY) <= BEAM_HIT_Y_TOLERANCE) {
+        el.classList.remove('is-ball-hit');
+        void el.offsetWidth; // restart the shake even if it's already mid-animation from a previous tick's hit
+        el.classList.add('is-ball-hit');
+        flashAvatarPose(targetUid, 'ite.png');
+        playBallHitSfx();
+      }
+    };
+    if (myEl && myUid) check(myUid, myState.x, myState.y, myEl);
+    remoteAvatars.forEach((entry, targetUid) => check(targetUid, entry.curX, entry.curY, entry.el));
   }
 
   function fireBeam(uid, box, facing) {
@@ -1284,17 +1310,25 @@
     flareEl.style.top = pos.topPct + '%';
     stage.appendChild(flareEl);
 
-    chargeFx.set(uid, { glowEl: null, beamEl, flareEl });
-    // Show both at full size/opacity immediately -- no grow-in animation.
-    // An animated grow (via a CSS transition or the Web Animations API)
-    // turned out unreliable here: it depends on the browser committing the
-    // zero-width starting state before the animation begins, which isn't
-    // guaranteed to happen inside the same tick as element creation, and
-    // when it doesn't the beam is left stuck invisible at zero width with
-    // no visible failure. Popping in instantly sidesteps that entirely;
-    // only the fade-out (a plain opacity transition, safe to skip if it
-    // doesn't fire since the element is removed a moment later anyway) is
-    // animated.
+    // the explosion at the far tip, where the beam actually lands
+    const tipLeftPct = facing === 'left' ? pos.leftPct - BEAM_MAX_WIDTH_PCT : pos.leftPct + BEAM_MAX_WIDTH_PCT;
+    const impactEl = document.createElement('div');
+    impactEl.className = 'beam-impact';
+    impactEl.style.left = tipLeftPct + '%';
+    impactEl.style.top = pos.topPct + '%';
+    stage.appendChild(impactEl);
+
+    chargeFx.set(uid, { glowEl: null, beamEl, flareEl, impactEl });
+    // Show the beam+flare at full size/opacity immediately -- no grow-in
+    // animation. An animated grow (via a CSS transition or the Web
+    // Animations API) turned out unreliable here: it depends on the browser
+    // committing the zero-width starting state before the animation begins,
+    // which isn't guaranteed to happen inside the same tick as element
+    // creation, and when it doesn't the beam is left stuck invisible at
+    // zero width with no visible failure. Popping in instantly sidesteps
+    // that entirely; only fade-outs (a plain opacity transition, safe to
+    // skip if it doesn't fire since the element is removed a moment later
+    // anyway) are animated.
     beamEl.style.opacity = '1';
     beamEl.style.transform = 'translateY(-50%) scaleX(1)';
     flareEl.style.opacity = '1';
@@ -1304,7 +1338,23 @@
       flareEl.style.transition = `opacity ${BEAM_FADE_MS}ms ease-in`;
       beamEl.style.opacity = '0';
       flareEl.style.opacity = '0';
+      // pop the impact explosion in right as the beam itself starts fading
+      impactEl.style.opacity = '1';
+      impactEl.style.transform = 'translate(-50%, -50%) scale(1.2)';
+      setTimeout(() => {
+        impactEl.style.transition = `opacity ${BEAM_FADE_MS}ms ease-in, transform ${BEAM_FADE_MS}ms ease-in`;
+        impactEl.style.opacity = '0';
+        impactEl.style.transform = 'translate(-50%, -50%) scale(1.6)';
+      }, 90);
     }, BEAM_HOLD_MS);
+
+    // hit detection: re-checked BEAM_HIT_TICKS times over the beam's held
+    // duration so a target standing in it gets tagged more than once
+    const originWorldX = (pos.leftPct / 100) * WORLD_W;
+    const originWorldY = (pos.topPct / 100) * WORLD_H;
+    for (let i = 0; i < BEAM_HIT_TICKS; i++) {
+      setTimeout(() => checkBeamHits(uid, originWorldX, originWorldY, facing), (i * BEAM_HOLD_MS) / BEAM_HIT_TICKS);
+    }
   }
 
   function setAvatarPoseImage(uid, poseFile, boxClass) {
