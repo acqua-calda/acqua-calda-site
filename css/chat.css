@@ -343,11 +343,17 @@ body{ min-height: calc(100dvh + 1px); overflow-x: hidden; }
 .chat-dpad [data-dir="down"]{ grid-column: 2; grid-row: 2; }
 
 /* ---------- ball catch/kick buttons ---------- */
+/* Anchored from the bottom, stacked just above the log+input column
+   (bottom: 74px + the log's 150px max-height + a gap) instead of
+   vertically centered -- centered used to get buried under the message
+   log once it filled up with enough lines on short/landscape screens
+   (reported by the user with a screenshot). Keep this in sync with
+   .chat-log's own bottom/max-height if either changes, including the
+   short-screen override below. */
 .chat-action-pad{
   position: absolute;
   right: max(16px, env(safe-area-inset-right));
-  top: 50%;
-  transform: translateY(-50%);
+  bottom: calc(max(74px, env(safe-area-inset-bottom) + 64px) + 150px + 14px);
   display: flex;
   flex-direction: row;
   gap: 9px;
@@ -670,4 +676,7 @@ body{ min-height: calc(100dvh + 1px); overflow-x: hidden; }
   .chat-volume{ top: max(56px, env(safe-area-inset-top) + 48px); }
   .chat-log{ max-height: 90px; }
   .chat-log, .chat-input-row{ width: min(230px, 60vw); }
+  /* .chat-log's max-height shrank above -- follow suit so the action
+     pad stays flush just above it instead of leaving a big gap. */
+  .chat-action-pad{ bottom: calc(max(74px, env(safe-area-inset-bottom) + 64px) + 90px + 14px); }
 }
