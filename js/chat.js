@@ -1645,9 +1645,16 @@
   // pattern already used for dragging popn.png.
   let catchLongPressTimer = null;
   let catchIsLongPress = false;
+  // Touch has no hover state, so lifting a finger fires 'pointerup' AND
+  // 'pointerleave' back to back for the same release -- without this guard
+  // that ran stopCharging() (and so the release pose) twice on mobile, and
+  // N's Genki Dama in particular has no orb left for the second call, so it
+  // fell into the "already gone" branch and instantly reverted GENKI2.png.
+  let catchChargeEnded = false;
   if (actionCatchBtn) {
     actionCatchBtn.addEventListener('pointerdown', () => {
       catchIsLongPress = false;
+      catchChargeEnded = false;
       clearTimeout(catchLongPressTimer);
       catchLongPressTimer = setTimeout(() => {
         catchIsLongPress = true;
@@ -1656,7 +1663,10 @@
     });
     const endCatchPress = () => {
       clearTimeout(catchLongPressTimer);
-      if (catchIsLongPress) stopCharging();
+      if (catchIsLongPress && !catchChargeEnded) {
+        catchChargeEnded = true;
+        stopCharging();
+      }
     };
     actionCatchBtn.addEventListener('pointerup', endCatchPress);
     actionCatchBtn.addEventListener('pointerleave', endCatchPress);
