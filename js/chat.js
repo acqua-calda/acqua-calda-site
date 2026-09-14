@@ -1141,6 +1141,8 @@
     if (entry) entry.poseUntil = 0;
     img.onerror = null;
     img.src = normalSrc;
+    const box = img.closest('.chat-avatar');
+    if (box) box.classList.remove('is-releasing');
   }
 
   let ballHoldPoseUid = null; // who currently has the persistent "holding the ball" pose active, if anyone
@@ -1191,17 +1193,17 @@
   /* ========================================================================
      CHARGE / RELEASE POSE (long-press ○) -- unrelated to the ball, works
      regardless of whether you're holding one. Holding ○ for CHARGE_HOLD_MS
-     starts a shared, synced charge-up animation (1.png..6.png, holding on 6
-     for as long as it's held); releasing plays the release pose (7.png
+     starts a shared, synced charge-up animation (1.png..5.png, holding on 5
+     for as long as it's held); releasing plays the release pose (6.png
      onward) then reverts. Same "broadcast just the start/release event,
      replay it deterministically from elapsed time" trick as the ball/rhythm
      game -- no per-frame network traffic.
      ======================================================================== */
   const CHARGE_HOLD_MS = 2000;
   const CHARGE_FRAME_MS = 150;
-  const CHARGE_FRAME_COUNT = 6;
-  const RELEASE_FRAME_START = 7;
-  const RELEASE_FRAME_END = 14;
+  const CHARGE_FRAME_COUNT = 5;
+  const RELEASE_FRAME_START = 6;
+  const RELEASE_FRAME_END = 21;
   const RELEASE_FRAME_MS = 90;
 
   const chargeAnimTimers = new Map(); // uid -> pending setTimeout id
@@ -1214,6 +1216,11 @@
     if (entry) entry.poseUntil = Infinity; // keep updateRemoteAvatar from fighting the in-progress charge frames
     img.onerror = () => { img.onerror = null; img.src = normalSrc; };
     img.src = avatarFolder(avatarId) + '/' + frameNum + '.png';
+    // the release frames are a much wider composition than the charge frames
+    // (see .is-releasing in chat.css) -- widen the avatar box to match so
+    // the character doesn't visually shrink once the beam starts
+    const box = img.closest('.chat-avatar');
+    if (box) box.classList.toggle('is-releasing', frameNum >= RELEASE_FRAME_START);
   }
 
   function beginChargeAnimation(uid, startAtMs) {
@@ -1234,7 +1241,7 @@
     });
   }
 
-  // Plays 7.png..14.png in sequence (the release/fire burst), then reverts
+  // Plays 6.png..21.png in sequence (the release/fire burst), then reverts
   // to the normal sprite.
   function runReleaseAnimation(uid) {
     const existingTimer = chargeAnimTimers.get(uid);

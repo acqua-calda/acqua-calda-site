@@ -143,6 +143,18 @@ body{ min-height: calc(100dvh + 1px); overflow-x: hidden; }
   pointer-events: none;
   z-index: 5;
 }
+/* The charge/release (○ long-press) sprite for YUU: charge frames (1-5) are
+   drawn in the same tall portrait framing as every other pose, but the
+   release frames (6-21, a wide beam+explosion) are a much wider landscape
+   composition -- inside the normal portrait box, object-fit:contain has to
+   shrink the whole image to fit the width, which shrinks YUU down to a
+   fraction of his charge-pose size. Widening the box to match the release
+   art's own aspect ratio (and centering YUU within that art beforehand)
+   keeps him the same on-screen size for both halves of the animation. */
+.chat-avatar.is-releasing{
+  width: 47%;
+  aspect-ratio: 762 / 169;
+}
 .chat-avatar-img{
   width: 100%; height: 100%; flex: none; display: block;
   object-fit: contain;
