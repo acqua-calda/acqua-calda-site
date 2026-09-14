@@ -960,16 +960,25 @@
   function playBallBounceSfx() {
     try { ballBounceSfx.currentTime = 0; ballBounceSfx.play().catch(() => {}); } catch { /* ignore */ }
   }
+  // Each special move gets its own charge/release sound pair so YUU's beam
+  // and N's genki dama don't sound identical.
   const chargeSfx = new Audio('audio/charge.mp3');
   chargeSfx.volume = 0.6;
-  function playChargeSfx() {
-    try { chargeSfx.currentTime = 0; chargeSfx.play().catch(() => {}); } catch { /* ignore */ }
-  }
   const releaseSfx = new Audio('audio/basyuu.mp3');
   releaseSfx.volume = 0.7;
-  function playReleaseSfx() {
-    try { chargeSfx.pause(); chargeSfx.currentTime = 0; } catch { /* ignore */ } // cut the charge sound off the moment the release fires
-    try { releaseSfx.currentTime = 0; releaseSfx.play().catch(() => {}); } catch { /* ignore */ }
+  const genkiChargeSfx = new Audio('audio/charge2.mp3');
+  genkiChargeSfx.volume = 0.6;
+  const genkiReleaseSfx = new Audio('audio/genkidama.mp3');
+  genkiReleaseSfx.volume = 0.7;
+  function playChargeSfx(move) {
+    const sfx = move === 'genkidama' ? genkiChargeSfx : chargeSfx;
+    try { sfx.currentTime = 0; sfx.play().catch(() => {}); } catch { /* ignore */ }
+  }
+  function playReleaseSfx(move) {
+    const chargeEl = move === 'genkidama' ? genkiChargeSfx : chargeSfx;
+    const releaseEl = move === 'genkidama' ? genkiReleaseSfx : releaseSfx;
+    try { chargeEl.pause(); chargeEl.currentTime = 0; } catch { /* ignore */ } // cut the charge sound off the moment the release fires
+    try { releaseEl.currentTime = 0; releaseEl.play().catch(() => {}); } catch { /* ignore */ }
   }
   let ballLastVx = null;
   let ballLastVy = null; // previous frame's flight velocity, used to detect a wall/floor/ceiling bounce (a sign flip) for piyon.mp3
@@ -1142,7 +1151,7 @@
     img.onerror = null;
     img.src = normalSrc;
     const box = img.closest('.chat-avatar');
-    if (box) box.classList.remove('is-charging', 'is-firing');
+    if (box) box.classList.remove('is-charging', 'is-firing', 'is-genki-charging');
   }
 
   let ballHoldPoseUid = null; // who currently has the persistent "holding the ball" pose active, if anyone
@@ -1193,18 +1202,27 @@
   /* ========================================================================
      CHARGE / RELEASE POSE (long-press ○) -- unrelated to the ball, works
      regardless of whether you're holding one. Holding ○ for CHARGE_HOLD_MS
-     switches to a single charging-pose image (a pulsing glow at the hands
-     while held); releasing swaps to a single firing-pose image and fires a
-     beam drawn/animated in CSS from the hands, then reverts. Earlier this
-     was two hand-drawn frame sequences (a tall charge sheet, a wide beam
-     sheet), but fitting both into the avatar's one portrait-shaped box made
-     YUU visibly shrink once the wide beam art took over -- a single pose
-     per phase (each given its own box size matching its own art) plus a
-     CSS beam sidesteps that entirely. Same "broadcast just the start/
-     release event, replay it deterministically from elapsed time" trick as
-     the ball/rhythm game -- no per-frame network traffic.
+     switches to a single charging-pose image, then releasing swaps to a
+     single firing-pose image and plays a CSS/JS effect, then reverts.
+     Different avatars can have different special moves (SPECIAL_MOVE_BY_
+     AVATAR below); avatars with none configured do nothing on long-press.
+     Earlier YUU's version used two hand-drawn frame sequences (a tall
+     charge sheet, a wide beam sheet), but fitting both into the avatar's
+     one portrait-shaped box made him visibly shrink once the wide beam art
+     took over -- a single pose per phase (each given its own box size
+     matching its own art) plus a CSS effect sidesteps that entirely. Same
+     "broadcast just the start/release event, replay it deterministically
+     from elapsed time" trick as the ball/rhythm game -- no per-frame
+     network traffic for the charge/release itself (the thrown Genki Dama
+     below is the one exception, driven by the shared per-frame loop()
+     like the ball, since its landing point depends on flight time).
      ======================================================================== */
   const CHARGE_HOLD_MS = 2000;
+
+  // avatarId -> which special move long-press ○ triggers; avatars with no
+  // entry here just do nothing (same as before any special move existed).
+  const SPECIAL_MOVE_BY_AVATAR = { yuu: 'beam', n: 'genkidama' };
+
   const BEAM_HOLD_MS = 480; // beam shown at full size before fading
   const BEAM_FADE_MS = 260;
   const BEAM_TOTAL_MS = BEAM_HOLD_MS + BEAM_FADE_MS;
@@ -1220,9 +1238,20 @@
   const CHARGE_HAND_ANCHOR = { fx: -0.167, fy: 0.532 };
   const FIRE_HAND_ANCHOR = { fx: 0.257, fy: 0.669 };
 
+  // N's Genki Dama (Dragon Ball spirit bomb): hop up holding a huge energy
+  // orb overhead (GENKI1.png) while charging, then on release drop back to
+  // the ground (GENKI2.png) and let the orb fall away in a straight
+  // diagonal line at the same speed the avatar walks at, until it hits the
+  // floor (or drifts off the room) and bursts.
+  // (how high N visually hops while charging lives in CSS, .chat-avatar.is-genki-charging)
+  const GENKI_ORB_LIFT_FRAC = 0.32; // orb's height above the (already-hopped) box's top edge, as a fraction of the box's own height
+  const GENKI_THROW_ANGLE_DEG = 55; // below horizontal; "diagonal downward" per the reference art
+  const GENKI_MAX_FLIGHT_MS = 3000; // safety upper bound used only to time the Firebase charge-node cleanup (the actual flight ends whenever it lands)
+
   const chargeAnimTimers = new Map(); // uid -> pending setTimeout id (reverting the pose)
   const chargeFx = new Map(); // uid -> {glowEl, beamEl} currently on screen for them
   const chargeKnown = new Map(); // uid -> last known {startAt, releasedAt}, to detect new starts/releases
+  const genkiFlights = new Map(); // uid -> in-flight Genki Dama state, updated once per frame from loop()
 
   function facingOf(uid, entry) {
     return uid === myUid ? myState.facing : (entry ? entry.targetFacing : 'right');
@@ -1249,7 +1278,22 @@
     if (fx.beamEl) fx.beamEl.remove();
     if (fx.flareEl) fx.flareEl.remove();
     if (fx.impactEl) fx.impactEl.remove();
+    if (fx.orbEl) fx.orbEl.remove();
     chargeFx.delete(uid);
+  }
+
+  // Screen position centered a bit above the given box's own top edge, as a
+  // percentage of the room stage -- used to float the Genki Dama above N's
+  // (already hopped-up) head regardless of exactly how far the hop lifted her.
+  function stagePercentAboveBox(box, liftFrac) {
+    const stageRect = stage.getBoundingClientRect();
+    const boxRect = box.getBoundingClientRect();
+    const x = boxRect.left + boxRect.width / 2;
+    const y = boxRect.top - boxRect.height * liftFrac;
+    return {
+      leftPct: ((x - stageRect.left) / stageRect.width) * 100,
+      topPct: ((y - stageRect.top) / stageRect.height) * 100,
+    };
   }
 
   function showChargeGlow(uid, box, facing) {
@@ -1260,7 +1304,7 @@
     glowEl.style.left = pos.leftPct + '%';
     glowEl.style.top = pos.topPct + '%';
     stage.appendChild(glowEl);
-    chargeFx.set(uid, { glowEl, beamEl: null, flareEl: null, impactEl: null });
+    chargeFx.set(uid, { glowEl, beamEl: null, flareEl: null, impactEl: null, orbEl: null });
   }
 
   // Cosmetic-only collision reaction, same spirit as the ball's checkHit:
@@ -1318,7 +1362,7 @@
     impactEl.style.top = pos.topPct + '%';
     stage.appendChild(impactEl);
 
-    chargeFx.set(uid, { glowEl: null, beamEl, flareEl, impactEl });
+    chargeFx.set(uid, { glowEl: null, beamEl, flareEl, impactEl, orbEl: null });
     // Show the beam+flare at full size/opacity immediately -- no grow-in
     // animation. An animated grow (via a CSS transition or the Web
     // Animations API) turned out unreliable here: it depends on the browser
@@ -1357,6 +1401,114 @@
     }
   }
 
+  // N's charge: hop up (a CSS class + transition on the already-on-screen
+  // avatar box -- unlike a freshly-created element, an existing element's
+  // transitions fire reliably, so this one's safe to animate rather than
+  // pop instantly) into GENKI1.png, with a huge energy orb floating above.
+  function beginGenkiCharge(uid) {
+    const target = resolveAvatarPoseTarget(uid);
+    if (!target) return;
+    const { img, normalSrc, avatarId, entry } = target;
+    const box = img.closest('.chat-avatar');
+    if (!box) return;
+    if (entry) entry.poseUntil = Infinity;
+    img.onerror = () => { img.onerror = null; img.src = normalSrc; };
+    img.src = avatarFolder(avatarId) + '/GENKI1.png';
+    box.classList.add('is-genki-charging');
+
+    // in case an earlier throw's orb is still mid-flight (unlikely given
+    // CHARGE_HOLD_MS, but cheap to guard) -- don't leak its element
+    const prevFlight = genkiFlights.get(uid);
+    if (prevFlight) { prevFlight.el.remove(); genkiFlights.delete(uid); }
+
+    clearChargeFx(uid);
+    const pos = stagePercentAboveBox(box, GENKI_ORB_LIFT_FRAC);
+    const orbEl = document.createElement('div');
+    orbEl.className = 'genki-orb';
+    orbEl.style.left = pos.leftPct + '%';
+    orbEl.style.top = pos.topPct + '%';
+    orbEl.style.opacity = '1';
+    stage.appendChild(orbEl);
+    chargeFx.set(uid, { glowEl: null, beamEl: null, flareEl: null, impactEl: null, orbEl });
+  }
+
+  // The burst where a landed/expired Genki Dama bursts -- reuses the beam's
+  // own impact look (same soft hot-flash treatment) but bigger, and placed
+  // directly (world coordinates) rather than relative to an avatar box.
+  function spawnGenkiImpact(worldX, worldY) {
+    const impactEl = document.createElement('div');
+    impactEl.className = 'beam-impact genki-impact';
+    positionWorldEl(impactEl, worldX, worldY);
+    impactEl.style.transform = 'translate(-50%, -50%) scale(1)';
+    impactEl.style.opacity = '1';
+    stage.appendChild(impactEl);
+    setTimeout(() => {
+      impactEl.style.transition = `opacity ${BEAM_FADE_MS}ms ease-in, transform ${BEAM_FADE_MS}ms ease-in`;
+      impactEl.style.opacity = '0';
+      impactEl.style.transform = 'translate(-50%, -50%) scale(1.6)';
+      setTimeout(() => impactEl.remove(), BEAM_FADE_MS + 50);
+    }, 60);
+  }
+
+  // N's release: drop back to the ground in GENKI2.png and let the orb
+  // (detached from chargeFx -- it now lives entirely in genkiFlights, driven
+  // once per frame from loop()) fall away in a straight diagonal line.
+  function throwGenkiDama(uid) {
+    const target = resolveAvatarPoseTarget(uid);
+    if (!target) return;
+    const { img, normalSrc, avatarId, entry } = target;
+    const box = img.closest('.chat-avatar');
+    const facing = facingOf(uid, entry);
+
+    const fx = chargeFx.get(uid);
+    const orbEl = fx && fx.orbEl;
+    chargeFx.delete(uid); // detach without removing the element -- ownership moves to genkiFlights below
+
+    if (entry) entry.poseUntil = Infinity;
+    img.onerror = () => { img.onerror = null; img.src = normalSrc; };
+    img.src = avatarFolder(avatarId) + '/GENKI2.png';
+    if (box) box.classList.remove('is-genki-charging');
+
+    if (!orbEl) { releaseAvatarPose(uid); return; } // charge state was somehow already gone -- nothing to throw
+
+    const stageRect = stage.getBoundingClientRect();
+    const orbRect = orbEl.getBoundingClientRect();
+    const startWorldX = ((orbRect.left + orbRect.width / 2 - stageRect.left) / stageRect.width) * WORLD_W;
+    const startWorldY = ((orbRect.top + orbRect.height / 2 - stageRect.top) / stageRect.height) * WORLD_H;
+
+    const angleRad = (GENKI_THROW_ANGLE_DEG * Math.PI) / 180;
+    const dir = facing === 'left' ? -1 : 1;
+    genkiFlights.set(uid, {
+      el: orbEl,
+      startWorldX, startWorldY,
+      vx: dir * MOVE_SPEED * Math.cos(angleRad),
+      vy: MOVE_SPEED * Math.sin(angleRad),
+      startPerf: performance.now(),
+    });
+  }
+
+  // Called once per frame from loop() -- advances every in-flight Genki
+  // Dama by elapsed time (not by dt) so its speed stays exactly MOVE_SPEED
+  // regardless of any single frame's length, same reasoning as the ball's
+  // simulateBallFlight.
+  function updateGenkiFlights(nowPerf) {
+    genkiFlights.forEach((flight, uid) => {
+      const elapsedSec = (nowPerf - flight.startPerf) / 1000;
+      const x = flight.startWorldX + flight.vx * elapsedSec;
+      const y = flight.startWorldY + flight.vy * elapsedSec;
+      if (y >= WORLD_H || x < -60 || x > WORLD_W + 60) {
+        const landX = clamp(x, 0, WORLD_W);
+        const landY = Math.min(y, WORLD_H);
+        spawnGenkiImpact(landX, landY);
+        flight.el.remove();
+        genkiFlights.delete(uid);
+        releaseAvatarPose(uid);
+        return;
+      }
+      positionWorldEl(flight.el, x, y);
+    });
+  }
+
   function setAvatarPoseImage(uid, poseFile, boxClass) {
     const target = resolveAvatarPoseTarget(uid);
     if (!target) return null;
@@ -1372,28 +1524,48 @@
     return { box, facing: facingOf(uid, entry) };
   }
 
+  function specialMoveFor(uid) {
+    const target = resolveAvatarPoseTarget(uid);
+    return target ? SPECIAL_MOVE_BY_AVATAR[target.avatarId] : null;
+  }
+
   function beginChargeAnimation(uid, startAtMs) {
     const existingTimer = chargeAnimTimers.get(uid);
     if (existingTimer) clearTimeout(existingTimer);
+    const move = specialMoveFor(uid);
+    if (!move) return; // this avatar has no special move configured
     getServerNow().then((serverNow) => {
       const latest = chargeKnown.get(uid);
       if (!latest || latest.startAt !== startAtMs) return; // superseded by a newer start/release already
-      playChargeSfx();
-      const posed = setAvatarPoseImage(uid, 'charge_pose.png', 'is-charging');
-      if (posed) showChargeGlow(uid, posed.box, posed.facing);
+      playChargeSfx(move);
+      if (move === 'beam') {
+        const posed = setAvatarPoseImage(uid, 'charge_pose.png', 'is-charging');
+        if (posed) showChargeGlow(uid, posed.box, posed.facing);
+      } else if (move === 'genkidama') {
+        beginGenkiCharge(uid);
+      }
     });
   }
 
   function endChargeAnimation(uid) {
-    playReleaseSfx();
-    const posed = setAvatarPoseImage(uid, 'fire_pose.png', 'is-firing');
-    if (posed) fireBeam(uid, posed.box, posed.facing);
-    const timer = setTimeout(() => {
-      chargeAnimTimers.delete(uid);
-      clearChargeFx(uid);
-      releaseAvatarPose(uid);
-    }, BEAM_TOTAL_MS);
-    chargeAnimTimers.set(uid, timer);
+    const move = specialMoveFor(uid);
+    if (!move) return;
+    playReleaseSfx(move);
+    if (move === 'beam') {
+      const posed = setAvatarPoseImage(uid, 'fire_pose.png', 'is-firing');
+      if (posed) fireBeam(uid, posed.box, posed.facing);
+      const timer = setTimeout(() => {
+        chargeAnimTimers.delete(uid);
+        clearChargeFx(uid);
+        releaseAvatarPose(uid);
+      }, BEAM_TOTAL_MS);
+      chargeAnimTimers.set(uid, timer);
+    } else if (move === 'genkidama') {
+      // no chargeAnimTimers entry here -- the pose reverts once the thrown
+      // orb actually lands, driven by updateGenkiFlights() every frame
+      // rather than a fixed timer (flight time varies with where it's thrown from).
+      throwGenkiDama(uid);
+    }
   }
 
   function stopChargeAnimNoRelease(uid) {
@@ -1401,6 +1573,8 @@
     if (timer) { clearTimeout(timer); chargeAnimTimers.delete(uid); }
     chargeKnown.delete(uid);
     clearChargeFx(uid);
+    const flight = genkiFlights.get(uid);
+    if (flight) { flight.el.remove(); genkiFlights.delete(uid); }
     releaseAvatarPose(uid);
   }
 
@@ -1444,7 +1618,8 @@
       // clean up once the release animation has had time to play out for
       // everyone, so this cycle doesn't linger and get mistaken for a fresh
       // event by the next client that attaches the listener (e.g. a reload)
-      const releaseDurationMs = BEAM_TOTAL_MS + 500;
+      const move = SPECIAL_MOVE_BY_AVATAR[profile && profile.avatar];
+      const releaseDurationMs = (move === 'genkidama' ? GENKI_MAX_FLIGHT_MS : BEAM_TOTAL_MS) + 500;
       setTimeout(() => { db.ref('charge/' + myUidAtRelease).remove(); }, releaseDurationMs);
     });
   }
@@ -1570,6 +1745,7 @@
 
     if (rhythmState && rhythmState.started && !rhythmState.ended) updateRhythmGame(now);
     updateBall(now);
+    updateGenkiFlights(now);
 
     requestAnimationFrame(loop);
   }

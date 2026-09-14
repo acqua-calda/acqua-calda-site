@@ -137,11 +137,21 @@ body{ min-height: calc(100dvh + 1px); overflow-x: hidden; }
      adding new avatars later never changes anyone's on-stage size. */
   aspect-ratio: 209 / 332;
   transform: translate(-50%, -100%);
+  /* Only ever used for the Genki Dama's hop-in-place (.is-genki-charging
+     below) -- position updates during normal walking go through left/top,
+     not transform, so this doesn't add any lag there. Safe to animate here
+     specifically because this element already exists on screen long before
+     the class is toggled (unlike a freshly-created element, where a
+     transition can silently fail to play -- see the .charge-beam comment). */
+  transition: transform 0.35s ease-out;
   display: flex;
   flex-direction: column;
   align-items: center;
   pointer-events: none;
   z-index: 5;
+}
+.chat-avatar.is-genki-charging{
+  transform: translate(-50%, calc(-100% - 16vh));
 }
 /* The charge/release (○ long-press) pose for YUU: charge_pose.png and
    fire_pose.png are each a wide crouching stance (very different from the
@@ -237,6 +247,33 @@ body{ min-height: calc(100dvh + 1px); overflow-x: hidden; }
   z-index: 7;
   opacity: 0;
 }
+/* N's genki dama: the same soft hot-flash treatment as .beam-flare/
+   .beam-impact but huge, per the Dragon Ball spirit-bomb reference art the
+   user attached, and continuously crackling (a self-contained CSS
+   @keyframes animation, not one that gets toggled from JS after creation --
+   see the .charge-beam comment on why that distinction matters here). */
+.genki-orb{
+  position: absolute;
+  width: 42%;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  background: radial-gradient(circle, #fff 0%, #fff 18%, var(--cyan) 42%, rgba(0,224,255,0.5) 62%, rgba(0,224,255,0.15) 78%, transparent 88%);
+  box-shadow:
+    0 0 1.4vw 0.6vw #fff,
+    0 0 4vw 1.8vw rgba(0,224,255,0.9),
+    0 0 8vw 3.4vw rgba(0,224,255,0.5);
+  pointer-events: none;
+  z-index: 6;
+  opacity: 0;
+  animation: genkiOrbCrackle 1.1s ease-in-out infinite;
+}
+@keyframes genkiOrbCrackle{
+  0%, 100%{ filter: brightness(1); }
+  50%{ filter: brightness(1.3); }
+}
+/* Bigger landing burst for the genki dama than the beam's own .beam-impact. */
+.genki-impact{ width: 34%; }
 .chat-avatar-img{
   width: 100%; height: 100%; flex: none; display: block;
   object-fit: contain;
