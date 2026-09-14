@@ -175,6 +175,13 @@
   bgm.loop = true;
   bgm.preload = 'none';
 
+  // Genki Dama's landing shakes the room: the moment it bursts (see
+  // updateGenkiFlights), everyone's ambient BGM and background swap to these
+  // (triggerHoukaiEffect below), reverting on their own once this track
+  // finishes playing.
+  const houkaiBgm = new Audio('audio/houkai.mp3');
+  houkaiBgm.preload = 'none';
+
   function loadBgmVolume() {
     let v = 60;
     try {
@@ -186,6 +193,8 @@
   function applyBgmVolume(v) {
     bgm.volume = v / 100;
     bgm.muted = v <= 0;
+    houkaiBgm.volume = bgm.volume;
+    houkaiBgm.muted = bgm.muted;
     if (volumeIcon) volumeIcon.textContent = v <= 0 ? '🔇' : v < 50 ? '🔉' : '🔊';
   }
   if (volumeSlider) {
@@ -206,6 +215,23 @@
     bgm.pause();
     bgm.currentTime = 0;
     if (volumeWrap) volumeWrap.hidden = true;
+  }
+
+  let bgmWasPlayingBeforeHoukai = false;
+  function endHoukaiEffect() {
+    stage.classList.remove('is-houkai');
+    houkaiBgm.pause();
+    houkaiBgm.currentTime = 0;
+    if (bgmWasPlayingBeforeHoukai) bgm.play().catch(() => {});
+  }
+  houkaiBgm.addEventListener('ended', endHoukaiEffect);
+  houkaiBgm.addEventListener('error', endHoukaiEffect); // don't get stuck on the destroyed room if the track fails to load/play
+  function triggerHoukaiEffect() {
+    stage.classList.add('is-houkai');
+    bgmWasPlayingBeforeHoukai = !bgm.paused;
+    bgm.pause(); // let houkai.mp3 take over instead of overlapping the room's ambient BGM
+    houkaiBgm.currentTime = 0;
+    houkaiBgm.play().catch(() => {});
   }
 
   /* ---------- entry overlay ---------- */
@@ -1256,6 +1282,9 @@
   const GENKI_ORB_WIDTH_PCT = 15; // orb diameter as % of the room stage's width (also set in CSS .genki-orb -- keep in sync)
   const GENKI_THROW_ANGLE_DEG = 55; // below horizontal; "diagonal downward" per the reference art
   const GENKI_MAX_FLIGHT_MS = 3000; // safety upper bound used only to time the Firebase charge-node cleanup (the actual flight ends whenever it lands)
+  const GENKI_HIT_RADIUS = (GENKI_ORB_WIDTH_PCT / 100) * WORLD_W / 2; // world units -- matches the orb's own on-screen radius
+  const GENKI_HIT_Y_TOLERANCE = AVATAR_H; // same generosity as the ball/beam's cosmetic hit check
+  const GENKI_MAX_HITS = 5; // caps how many avatars a single thrown orb can tag
 
   const chargeAnimTimers = new Map(); // uid -> pending setTimeout id (reverting the pose)
   const chargeFx = new Map(); // uid -> {glowEl, beamEl} currently on screen for them
@@ -1500,6 +1529,7 @@
       vx: dir * MOVE_SPEED * Math.cos(angleRad),
       vy: MOVE_SPEED * Math.sin(angleRad),
       startPerf: performance.now(),
+      hitAvatars: new Set(), // avatars already tagged by this throw, so a lingering orb doesn't re-hit the same person every frame
     });
   }
 
@@ -1507,15 +1537,37 @@
   // Dama by elapsed time (not by dt) so its speed stays exactly MOVE_SPEED
   // regardless of any single frame's length, same reasoning as the ball's
   // simulateBallFlight.
+  // cosmetic-only collision reaction, same "each client decides locally"
+  // reasoning as the ball's checkHit -- tags up to GENKI_MAX_HITS avatars
+  // per throw, each only once even while the orb keeps overlapping them.
+  function checkGenkiHits(uid, flight, x, y) {
+    if (flight.hitAvatars.size >= GENKI_MAX_HITS) return;
+    const checkHit = (targetUid, tx, ty, el) => {
+      if (targetUid === uid || flight.hitAvatars.has(targetUid) || flight.hitAvatars.size >= GENKI_MAX_HITS) return;
+      if (Math.abs(tx - x) <= GENKI_HIT_RADIUS && Math.abs(ty - y) <= GENKI_HIT_Y_TOLERANCE) {
+        flight.hitAvatars.add(targetUid);
+        el.classList.remove('is-ball-hit');
+        void el.offsetWidth; // restart the shake even if it's already mid-animation from a previous hit
+        el.classList.add('is-ball-hit');
+        flashAvatarPose(targetUid, 'ite.png');
+        playBallHitSfx();
+      }
+    };
+    if (myEl && myUid) checkHit(myUid, myState.x, myState.y, myEl);
+    remoteAvatars.forEach((entry, targetUid) => checkHit(targetUid, entry.curX, entry.curY, entry.el));
+  }
+
   function updateGenkiFlights(nowPerf) {
     genkiFlights.forEach((flight, uid) => {
       const elapsedSec = (nowPerf - flight.startPerf) / 1000;
       const x = flight.startWorldX + flight.vx * elapsedSec;
       const y = flight.startWorldY + flight.vy * elapsedSec;
+      checkGenkiHits(uid, flight, x, y);
       if (y >= WORLD_H || x < -60 || x > WORLD_W + 60) {
         const landX = clamp(x, 0, WORLD_W);
         const landY = Math.min(y, WORLD_H);
         spawnGenkiImpact(landX, landY);
+        triggerHoukaiEffect();
         flight.el.remove();
         genkiFlights.delete(uid);
         releaseAvatarPose(uid);

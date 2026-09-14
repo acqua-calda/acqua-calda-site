@@ -128,6 +128,14 @@ body{ min-height: calc(100dvh + 1px); overflow-x: hidden; }
     url("../img/aqua_House_screen.png") center / cover no-repeat,
     var(--bg-alt);
 }
+/* Swapped in while N's Genki Dama is out (see triggerHoukaiEffect in chat.js),
+   reverting once houkai.mp3 finishes playing. */
+.chat-stage.is-houkai{
+  background:
+    radial-gradient(ellipse at 50% 100%, rgba(47,123,255,0.22), transparent 60%),
+    url("../img/houkai.png") center / cover no-repeat,
+    var(--bg-alt);
+}
 
 .chat-avatar{
   position: absolute;
