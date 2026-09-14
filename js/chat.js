@@ -1142,7 +1142,7 @@
     img.onerror = null;
     img.src = normalSrc;
     const box = img.closest('.chat-avatar');
-    if (box) box.classList.remove('is-releasing');
+    if (box) box.classList.remove('is-charging', 'is-firing');
   }
 
   let ballHoldPoseUid = null; // who currently has the persistent "holding the ball" pose active, if anyone
@@ -1193,34 +1193,118 @@
   /* ========================================================================
      CHARGE / RELEASE POSE (long-press ○) -- unrelated to the ball, works
      regardless of whether you're holding one. Holding ○ for CHARGE_HOLD_MS
-     starts a shared, synced charge-up animation (1.png..5.png, holding on 5
-     for as long as it's held); releasing plays the release pose (6.png
-     onward) then reverts. Same "broadcast just the start/release event,
-     replay it deterministically from elapsed time" trick as the ball/rhythm
-     game -- no per-frame network traffic.
+     switches to a single charging-pose image (a pulsing glow at the hands
+     while held); releasing swaps to a single firing-pose image and fires a
+     beam drawn/animated in CSS from the hands, then reverts. Earlier this
+     was two hand-drawn frame sequences (a tall charge sheet, a wide beam
+     sheet), but fitting both into the avatar's one portrait-shaped box made
+     YUU visibly shrink once the wide beam art took over -- a single pose
+     per phase (each given its own box size matching its own art) plus a
+     CSS beam sidesteps that entirely. Same "broadcast just the start/
+     release event, replay it deterministically from elapsed time" trick as
+     the ball/rhythm game -- no per-frame network traffic.
      ======================================================================== */
   const CHARGE_HOLD_MS = 2000;
-  const CHARGE_FRAME_MS = 150;
-  const CHARGE_FRAME_COUNT = 5;
-  const RELEASE_FRAME_START = 6;
-  const RELEASE_FRAME_END = 21;
-  const RELEASE_FRAME_MS = 90;
+  const BEAM_GROW_MS = 220;
+  const BEAM_HOLD_MS = 260;
+  const BEAM_FADE_MS = 260;
+  const BEAM_TOTAL_MS = BEAM_GROW_MS + BEAM_HOLD_MS + BEAM_FADE_MS;
+  const BEAM_MAX_WIDTH_PCT = 24; // beam length as % of the room stage's width
 
-  const chargeAnimTimers = new Map(); // uid -> pending setTimeout id
+  // Where the hands sit within each pose image, as a fraction of the avatar
+  // box's own width/height measured from its bottom-center (the box's
+  // translate(-50%,-100%) anchor, i.e. the avatar's world position), for a
+  // facing-right pose -- mirrored for facing-left. Re-measure these if the
+  // pose art is ever redrawn/re-cropped.
+  const CHARGE_HAND_ANCHOR = { fx: -0.167, fy: 0.532 };
+  const FIRE_HAND_ANCHOR = { fx: 0.257, fy: 0.669 };
+
+  const chargeAnimTimers = new Map(); // uid -> pending setTimeout id (reverting the pose)
+  const chargeFx = new Map(); // uid -> {glowEl, beamEl} currently on screen for them
   const chargeKnown = new Map(); // uid -> last known {startAt, releasedAt}, to detect new starts/releases
 
-  function setAvatarChargeFrame(uid, frameNum) {
+  function facingOf(uid, entry) {
+    return uid === myUid ? myState.facing : (entry ? entry.targetFacing : 'right');
+  }
+
+  // Screen position of the hands, as a percentage of the room stage, given
+  // the avatar box currently on screen and which pose's anchor to use.
+  function handStagePercent(box, anchor, facing) {
+    const stageRect = stage.getBoundingClientRect();
+    const boxRect = box.getBoundingClientRect();
+    const sign = facing === 'left' ? -1 : 1;
+    const handX = boxRect.left + boxRect.width / 2 + sign * anchor.fx * boxRect.width;
+    const handY = boxRect.bottom - anchor.fy * boxRect.height;
+    return {
+      leftPct: ((handX - stageRect.left) / stageRect.width) * 100,
+      topPct: ((handY - stageRect.top) / stageRect.height) * 100,
+    };
+  }
+
+  function clearChargeFx(uid) {
+    const fx = chargeFx.get(uid);
+    if (!fx) return;
+    if (fx.glowEl) fx.glowEl.remove();
+    if (fx.beamEl) fx.beamEl.remove();
+    chargeFx.delete(uid);
+  }
+
+  function showChargeGlow(uid, box, facing) {
+    clearChargeFx(uid);
+    const glowEl = document.createElement('div');
+    glowEl.className = 'charge-glow';
+    const pos = handStagePercent(box, CHARGE_HAND_ANCHOR, facing);
+    glowEl.style.left = pos.leftPct + '%';
+    glowEl.style.top = pos.topPct + '%';
+    stage.appendChild(glowEl);
+    chargeFx.set(uid, { glowEl, beamEl: null });
+  }
+
+  function fireBeam(uid, box, facing) {
+    clearChargeFx(uid);
+    const pos = handStagePercent(box, FIRE_HAND_ANCHOR, facing);
+    const beamEl = document.createElement('div');
+    beamEl.className = 'charge-beam';
+    beamEl.style.top = pos.topPct + '%';
+    beamEl.style.width = BEAM_MAX_WIDTH_PCT + '%';
+    if (facing === 'left') {
+      beamEl.style.left = (pos.leftPct - BEAM_MAX_WIDTH_PCT) + '%';
+      beamEl.style.transformOrigin = 'right center';
+    } else {
+      beamEl.style.left = pos.leftPct + '%';
+      beamEl.style.transformOrigin = 'left center';
+    }
+    stage.appendChild(beamEl);
+    chargeFx.set(uid, { glowEl: null, beamEl });
+    // grow -> hold -> fade. Uses the Web Animations API rather than a CSS
+    // transition triggered from a follow-up style change -- a transition
+    // needs the browser to actually paint the starting state before the
+    // change, which a requestAnimationFrame/setTimeout callback can't
+    // reliably guarantee (e.g. on a backgrounded tab), silently leaving the
+    // beam stuck invisible at zero width. animate() plays immediately.
+    const growEnd = BEAM_GROW_MS / BEAM_TOTAL_MS;
+    const holdEnd = (BEAM_GROW_MS + BEAM_HOLD_MS) / BEAM_TOTAL_MS;
+    beamEl.animate([
+      { transform: 'translateY(-50%) scaleX(0)', opacity: 0, offset: 0 },
+      { transform: 'translateY(-50%) scaleX(1)', opacity: 1, offset: growEnd },
+      { transform: 'translateY(-50%) scaleX(1)', opacity: 1, offset: holdEnd },
+      { transform: 'translateY(-50%) scaleX(1)', opacity: 0, offset: 1 },
+    ], { duration: BEAM_TOTAL_MS, easing: 'ease-out', fill: 'forwards' });
+  }
+
+  function setAvatarPoseImage(uid, poseFile, boxClass) {
     const target = resolveAvatarPoseTarget(uid);
-    if (!target) return;
+    if (!target) return null;
     const { img, normalSrc, avatarId, entry } = target;
-    if (entry) entry.poseUntil = Infinity; // keep updateRemoteAvatar from fighting the in-progress charge frames
+    if (entry) entry.poseUntil = Infinity; // keep updateRemoteAvatar from fighting the in-progress pose
     img.onerror = () => { img.onerror = null; img.src = normalSrc; };
-    img.src = avatarFolder(avatarId) + '/' + frameNum + '.png';
-    // the release frames are a much wider composition than the charge frames
-    // (see .is-releasing in chat.css) -- widen the avatar box to match so
-    // the character doesn't visually shrink once the beam starts
+    img.src = avatarFolder(avatarId) + '/' + poseFile;
     const box = img.closest('.chat-avatar');
-    if (box) box.classList.toggle('is-releasing', frameNum >= RELEASE_FRAME_START);
+    if (box) {
+      box.classList.remove('is-charging', 'is-firing');
+      box.classList.add(boxClass);
+    }
+    return { box, facing: facingOf(uid, entry) };
   }
 
   function beginChargeAnimation(uid, startAtMs) {
@@ -1230,45 +1314,28 @@
       const latest = chargeKnown.get(uid);
       if (!latest || latest.startAt !== startAtMs) return; // superseded by a newer start/release already
       playChargeSfx();
-      const startPerf = performance.now() - (serverNow - startAtMs);
-      const tick = () => {
-        const elapsed = performance.now() - startPerf;
-        const frame = Math.min(CHARGE_FRAME_COUNT, 1 + Math.floor(elapsed / CHARGE_FRAME_MS));
-        setAvatarChargeFrame(uid, frame);
-        chargeAnimTimers.set(uid, setTimeout(tick, CHARGE_FRAME_MS / 2));
-      };
-      tick();
+      const posed = setAvatarPoseImage(uid, 'charge_pose.png', 'is-charging');
+      if (posed) showChargeGlow(uid, posed.box, posed.facing);
     });
-  }
-
-  // Plays 6.png..21.png in sequence (the release/fire burst), then reverts
-  // to the normal sprite.
-  function runReleaseAnimation(uid) {
-    const existingTimer = chargeAnimTimers.get(uid);
-    if (existingTimer) clearTimeout(existingTimer);
-    let frame = RELEASE_FRAME_START;
-    const step = () => {
-      if (frame > RELEASE_FRAME_END) {
-        chargeAnimTimers.delete(uid);
-        releaseAvatarPose(uid);
-        return;
-      }
-      setAvatarChargeFrame(uid, frame);
-      frame++;
-      chargeAnimTimers.set(uid, setTimeout(step, RELEASE_FRAME_MS));
-    };
-    step();
   }
 
   function endChargeAnimation(uid) {
     playReleaseSfx();
-    runReleaseAnimation(uid);
+    const posed = setAvatarPoseImage(uid, 'fire_pose.png', 'is-firing');
+    if (posed) fireBeam(uid, posed.box, posed.facing);
+    const timer = setTimeout(() => {
+      chargeAnimTimers.delete(uid);
+      clearChargeFx(uid);
+      releaseAvatarPose(uid);
+    }, BEAM_TOTAL_MS);
+    chargeAnimTimers.set(uid, timer);
   }
 
   function stopChargeAnimNoRelease(uid) {
     const timer = chargeAnimTimers.get(uid);
     if (timer) { clearTimeout(timer); chargeAnimTimers.delete(uid); }
     chargeKnown.delete(uid);
+    clearChargeFx(uid);
     releaseAvatarPose(uid);
   }
 
@@ -1312,7 +1379,7 @@
       // clean up once the release animation has had time to play out for
       // everyone, so this cycle doesn't linger and get mistaken for a fresh
       // event by the next client that attaches the listener (e.g. a reload)
-      const releaseDurationMs = (RELEASE_FRAME_END - RELEASE_FRAME_START + 1) * RELEASE_FRAME_MS + 500;
+      const releaseDurationMs = BEAM_TOTAL_MS + 500;
       setTimeout(() => { db.ref('charge/' + myUidAtRelease).remove(); }, releaseDurationMs);
     });
   }

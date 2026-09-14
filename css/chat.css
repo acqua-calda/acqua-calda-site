@@ -143,17 +143,53 @@ body{ min-height: calc(100dvh + 1px); overflow-x: hidden; }
   pointer-events: none;
   z-index: 5;
 }
-/* The charge/release (○ long-press) sprite for YUU: charge frames (1-5) are
-   drawn in the same tall portrait framing as every other pose, but the
-   release frames (6-21, a wide beam+explosion) are a much wider landscape
-   composition -- inside the normal portrait box, object-fit:contain has to
-   shrink the whole image to fit the width, which shrinks YUU down to a
-   fraction of his charge-pose size. Widening the box to match the release
-   art's own aspect ratio (and centering YUU within that art beforehand)
-   keeps him the same on-screen size for both halves of the animation. */
-.chat-avatar.is-releasing{
-  width: 47%;
-  aspect-ratio: 762 / 169;
+/* The charge/release (○ long-press) pose for YUU: charge_pose.png and
+   fire_pose.png are each a wide crouching stance (very different from the
+   tall portrait framing every other pose uses), and the two aren't even the
+   same aspect ratio as each other. Rather than force both into the normal
+   portrait box (which would shrink one relative to the other under
+   object-fit:contain), each gets its own box sized to its own art so YUU
+   reads as the same on-screen size in both -- and in the normal idle pose.
+   The beam itself is drawn separately (see .charge-beam below) instead of
+   being baked into hand-drawn release frames. */
+.chat-avatar.is-charging{
+  width: 14.3%;
+  aspect-ratio: 720 / 737;
+}
+.chat-avatar.is-firing{
+  width: 19%;
+  aspect-ratio: 977 / 755;
+}
+/* Pulsing glow at YUU's hands while charge/is-charging is held. */
+.charge-glow{
+  position: absolute;
+  width: 3.4%;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  background: radial-gradient(circle, #fff, var(--cyan) 45%, rgba(0,224,255,0) 72%);
+  box-shadow: 0 0 1.2vw 0.4vw rgba(0,224,255,0.7);
+  pointer-events: none;
+  z-index: 6;
+  animation: chargeGlowPulse 0.9s ease-in-out infinite;
+}
+@keyframes chargeGlowPulse{
+  0%, 100%{ transform: translate(-50%, -50%) scale(0.85); opacity: 0.75; }
+  50%{ transform: translate(-50%, -50%) scale(1.15); opacity: 1; }
+}
+/* The fired beam: grown/faded from JS (chat.js's fireBeam) via transform
+   and opacity, anchored at the firing hand with transform-origin flipped
+   for facing-left so it always shoots outward, never through the body. */
+.charge-beam{
+  position: absolute;
+  height: 1.6%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #fff, var(--cyan) 30%, rgba(0,224,255,0.2) 85%, transparent);
+  box-shadow: 0 0 1vw 0.3vw rgba(0,224,255,0.85), 0 0 2.6vw 1vw rgba(0,224,255,0.45);
+  pointer-events: none;
+  z-index: 6;
+  transform: translateY(-50%) scaleX(0);
+  opacity: 0;
 }
 .chat-avatar-img{
   width: 100%; height: 100%; flex: none; display: block;
