@@ -277,15 +277,28 @@ body{ min-height: calc(100dvh + 1px); overflow-x: hidden; }
 }
 /* Bigger landing burst for the genki dama than the beam's own .beam-impact. */
 .genki-impact{ width: 34%; }
+/* Facing (left/right mirror) is applied via the --facing-scale custom
+   property rather than setting `transform` directly from JS. Any keyframe
+   animation below that also animates `transform` on this element (walking
+   bob, ball-hit shake) MUST compose scaleX(var(--facing-scale)) into its
+   own transform value -- a keyframe that sets a bare `transform: translateX(...)`
+   would otherwise replace the mirror entirely for its duration, which is
+   exactly the bug reported: while walking, the CSS animation silently
+   dropped the mirror, so avatars only showed correctly facing once they
+   stopped and the animation (and its unmirrored transform) stopped
+   overriding the base rule. See setAvatarFacing() in js/chat.js.
+   */
 .chat-avatar-img{
   width: 100%; height: 100%; flex: none; display: block;
+  --facing-scale: 1;
+  transform: scaleX(var(--facing-scale));
   object-fit: contain;
   filter: drop-shadow(0 6px 10px rgba(0,0,0,0.45));
 }
 .chat-avatar.is-walking .chat-avatar-img{ animation: chatBob 0.35s ease-in-out infinite; }
 @keyframes chatBob{
-  0%, 100%{ transform: translateY(0); }
-  50%{ transform: translateY(-4%); }
+  0%, 100%{ transform: scaleX(var(--facing-scale)) translateY(0); }
+  50%{ transform: scaleX(var(--facing-scale)) translateY(-4%); }
 }
 .chat-avatar.is-note-catch .chat-avatar-img{ animation: chatNoteCatchGlow 0.4s ease-out; }
 @keyframes chatNoteCatchGlow{
@@ -295,12 +308,12 @@ body{ min-height: calc(100dvh + 1px); overflow-x: hidden; }
 }
 .chat-avatar.is-ball-hit .chat-avatar-img{ animation: chatBallHitShake 0.35s ease-out; }
 @keyframes chatBallHitShake{
-  0%{ transform: translateX(0) rotate(0deg); }
-  20%{ transform: translateX(-6%) rotate(-6deg); }
-  40%{ transform: translateX(5%) rotate(5deg); }
-  60%{ transform: translateX(-4%) rotate(-3deg); }
-  80%{ transform: translateX(3%) rotate(2deg); }
-  100%{ transform: translateX(0) rotate(0deg); }
+  0%{ transform: scaleX(var(--facing-scale)) translateX(0) rotate(0deg); }
+  20%{ transform: scaleX(var(--facing-scale)) translateX(-6%) rotate(-6deg); }
+  40%{ transform: scaleX(var(--facing-scale)) translateX(5%) rotate(5deg); }
+  60%{ transform: scaleX(var(--facing-scale)) translateX(-4%) rotate(-3deg); }
+  80%{ transform: scaleX(var(--facing-scale)) translateX(3%) rotate(2deg); }
+  100%{ transform: scaleX(var(--facing-scale)) translateX(0) rotate(0deg); }
 }
 
 .room-ball{

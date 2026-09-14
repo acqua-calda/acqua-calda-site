@@ -342,8 +342,15 @@
     el.style.top = (y / WORLD_H) * 100 + '%';
   }
   const positionWorldEl = positionAvatarEl; // same world-space -> % conversion, used for non-avatar room objects too
+  // Sets a CSS custom property rather than el.style.transform directly --
+  // walking/ball-hit CSS animations also animate transform on this same
+  // element, and a plain inline transform gets silently discarded for as
+  // long as one of those animations is running (see the comment above
+  // .chat-avatar-img in chat.css). Every keyframe there composes
+  // scaleX(var(--facing-scale)) into its own transform so the mirror
+  // survives regardless of which animation (if any) is currently active.
   function setAvatarFacing(el, facing) {
-    el.querySelector('.chat-avatar-img').style.transform = facing === 'left' ? 'scaleX(-1)' : 'scaleX(1)';
+    el.querySelector('.chat-avatar-img').style.setProperty('--facing-scale', facing === 'left' ? '-1' : '1');
   }
   function showBubble(el, text) {
     const bubble = el.querySelector('.chat-bubble');
