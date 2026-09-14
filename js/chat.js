@@ -1246,6 +1246,7 @@
     if (!fx) return;
     if (fx.glowEl) fx.glowEl.remove();
     if (fx.beamEl) fx.beamEl.remove();
+    if (fx.flareEl) fx.flareEl.remove();
     chargeFx.delete(uid);
   }
 
@@ -1257,12 +1258,13 @@
     glowEl.style.left = pos.leftPct + '%';
     glowEl.style.top = pos.topPct + '%';
     stage.appendChild(glowEl);
-    chargeFx.set(uid, { glowEl, beamEl: null });
+    chargeFx.set(uid, { glowEl, beamEl: null, flareEl: null });
   }
 
   function fireBeam(uid, box, facing) {
     clearChargeFx(uid);
     const pos = handStagePercent(box, FIRE_HAND_ANCHOR, facing);
+
     const beamEl = document.createElement('div');
     beamEl.className = 'charge-beam';
     beamEl.style.top = pos.topPct + '%';
@@ -1275,7 +1277,15 @@
       beamEl.style.transformOrigin = 'left center';
     }
     stage.appendChild(beamEl);
-    chargeFx.set(uid, { glowEl: null, beamEl });
+
+    // the burst of light erupting from the hands where the beam originates
+    const flareEl = document.createElement('div');
+    flareEl.className = 'beam-flare';
+    flareEl.style.left = pos.leftPct + '%';
+    flareEl.style.top = pos.topPct + '%';
+    stage.appendChild(flareEl);
+
+    chargeFx.set(uid, { glowEl: null, beamEl, flareEl });
     // grow -> hold -> fade. Uses the Web Animations API rather than a CSS
     // transition triggered from a follow-up style change -- a transition
     // needs the browser to actually paint the starting state before the
@@ -1289,6 +1299,12 @@
       { transform: 'translateY(-50%) scaleX(1)', opacity: 1, offset: growEnd },
       { transform: 'translateY(-50%) scaleX(1)', opacity: 1, offset: holdEnd },
       { transform: 'translateY(-50%) scaleX(1)', opacity: 0, offset: 1 },
+    ], { duration: BEAM_TOTAL_MS, easing: 'ease-out', fill: 'forwards' });
+    flareEl.animate([
+      { transform: 'translate(-50%, -50%) scale(0) rotate(0deg)', opacity: 0, offset: 0 },
+      { transform: 'translate(-50%, -50%) scale(1.3) rotate(20deg)', opacity: 1, offset: growEnd * 0.7 },
+      { transform: 'translate(-50%, -50%) scale(1) rotate(35deg)', opacity: 1, offset: holdEnd },
+      { transform: 'translate(-50%, -50%) scale(1) rotate(55deg)', opacity: 0, offset: 1 },
     ], { duration: BEAM_TOTAL_MS, easing: 'ease-out', fill: 'forwards' });
   }
 

@@ -179,16 +179,37 @@ body{ min-height: calc(100dvh + 1px); overflow-x: hidden; }
 }
 /* The fired beam: grown/faded from JS (chat.js's fireBeam) via transform
    and opacity, anchored at the firing hand with transform-origin flipped
-   for facing-left so it always shoots outward, never through the body. */
+   for facing-left so it always shoots outward, never through the body.
+   Thick (roughly half the avatar's own width) with a hot white core and a
+   heavy multi-layer glow so it reads as a solid energy blast, not a laser
+   line. */
 .charge-beam{
   position: absolute;
-  height: 1.6%;
+  height: 16%;
   border-radius: 999px;
-  background: linear-gradient(90deg, #fff, var(--cyan) 30%, rgba(0,224,255,0.2) 85%, transparent);
-  box-shadow: 0 0 1vw 0.3vw rgba(0,224,255,0.85), 0 0 2.6vw 1vw rgba(0,224,255,0.45);
+  background: linear-gradient(90deg, #fff 0%, #fff 10%, var(--cyan) 32%, rgba(0,224,255,0.35) 80%, rgba(0,224,255,0) 100%);
+  box-shadow:
+    0 0 0.8vw 0.4vw #fff,
+    0 0 3.2vw 1.4vw rgba(0,224,255,0.9),
+    0 0 6.5vw 2.8vw rgba(0,224,255,0.55);
   pointer-events: none;
   z-index: 6;
   transform: translateY(-50%) scaleX(0);
+  opacity: 0;
+}
+/* The burst of light where the beam erupts from YUU's hands -- a spiky
+   "flare" rather than a plain circle, for the kamehameha "bursting out"
+   look, popping in right as the beam appears. */
+.beam-flare{
+  position: absolute;
+  width: 11%;
+  aspect-ratio: 1;
+  transform: translate(-50%, -50%) scale(0);
+  clip-path: polygon(50% 0%, 61% 35%, 98% 35%, 68% 57%, 79% 91%, 50% 70%, 21% 91%, 32% 57%, 2% 35%, 39% 35%);
+  background: radial-gradient(circle, #fff 0%, #fff 30%, var(--cyan) 55%, rgba(0,224,255,0.4) 75%, transparent 85%);
+  box-shadow: 0 0 1.4vw 0.6vw rgba(0,224,255,0.85);
+  pointer-events: none;
+  z-index: 7;
   opacity: 0;
 }
 .chat-avatar-img{
