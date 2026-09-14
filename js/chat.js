@@ -1524,12 +1524,16 @@
       const moving = dx !== 0 || dy !== 0;
       if (moving) {
         const len = Math.hypot(dx, dy) || 1;
+        // during the rhythm minigame movement is left/right-only (dy forced
+        // to 0 above), and everyone's darting under falling notes, so bump
+        // the pace up to make that side-to-side dodging feel snappier
+        const speed = MOVE_SPEED * (movementLockedToGame ? 1.5 : 1);
         // (x,y) is the avatar's feet/bottom-center point (see the translate(-50%,-100%)
         // in CSS), so the walkable range has to be offset by the avatar's own footprint
         // rather than starting the clamp at 0 -- otherwise the bottom/side margins are
         // wasted and the avatar can't actually reach the edges of the room.
-        myState.x = clamp(myState.x + (dx / len) * MOVE_SPEED * dt, AVATAR_W / 2, WORLD_W - AVATAR_W / 2);
-        myState.y = clamp(myState.y + (dy / len) * MOVE_SPEED * dt, AVATAR_H, WORLD_H);
+        myState.x = clamp(myState.x + (dx / len) * speed * dt, AVATAR_W / 2, WORLD_W - AVATAR_W / 2);
+        myState.y = clamp(myState.y + (dy / len) * speed * dt, AVATAR_H, WORLD_H);
         if (dx < 0) myState.facing = 'left';
         if (dx > 0) myState.facing = 'right';
       }

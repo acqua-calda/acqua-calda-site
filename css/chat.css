@@ -322,9 +322,9 @@ body{ min-height: calc(100dvh + 1px); overflow-x: hidden; }
   left: max(16px, env(safe-area-inset-left));
   bottom: max(16px, env(safe-area-inset-bottom));
   display: grid;
-  grid-template-columns: repeat(3, 34px);
-  grid-template-rows: repeat(2, 34px);
-  gap: 4px;
+  grid-template-columns: repeat(3, 51px);
+  grid-template-rows: repeat(2, 51px);
+  gap: 6px;
   opacity: 0.85;
   z-index: 10;
 }
@@ -333,7 +333,7 @@ body{ min-height: calc(100dvh + 1px); overflow-x: hidden; }
   border: 1px solid var(--border);
   color: var(--fg);
   border-radius: 8px;
-  font-size: 14px;
+  font-size: 21px;
   cursor: pointer;
   touch-action: none;
 }
@@ -349,17 +349,17 @@ body{ min-height: calc(100dvh + 1px); overflow-x: hidden; }
   top: 50%;
   transform: translateY(-50%);
   display: flex;
-  flex-direction: column;
-  gap: 6px;
+  flex-direction: row;
+  gap: 9px;
   z-index: 10;
   opacity: 0.85;
 }
 .chat-action-pad button{
-  width: 40px; height: 40px;
+  width: 60px; height: 60px;
   border-radius: 50%;
   background: rgba(6,20,52,0.6);
   font-weight: 700;
-  font-size: 15px;
+  font-size: 23px;
   cursor: pointer;
   touch-action: none;
 }
