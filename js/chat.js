@@ -1244,7 +1244,7 @@
   // diagonal line at the same speed the avatar walks at, until it hits the
   // floor (or drifts off the room) and bursts.
   // (how high N visually hops while charging lives in CSS, .chat-avatar.is-genki-charging)
-  const GENKI_ORB_LIFT_FRAC = 0.32; // orb's height above the (already-hopped) box's top edge, as a fraction of the box's own height
+  const GENKI_ORB_WIDTH_PCT = 15; // orb diameter as % of the room stage's width (also set in CSS .genki-orb -- keep in sync)
   const GENKI_THROW_ANGLE_DEG = 55; // below horizontal; "diagonal downward" per the reference art
   const GENKI_MAX_FLIGHT_MS = 3000; // safety upper bound used only to time the Firebase charge-node cleanup (the actual flight ends whenever it lands)
 
@@ -1282,14 +1282,21 @@
     chargeFx.delete(uid);
   }
 
-  // Screen position centered a bit above the given box's own top edge, as a
-  // percentage of the room stage -- used to float the Genki Dama above N's
-  // (already hopped-up) head regardless of exactly how far the hop lifted her.
-  function stagePercentAboveBox(box, liftFrac) {
+  // Screen position for the Genki Dama orb, centered above the given box's
+  // own top edge with enough clearance that the orb's own circle -- sized
+  // orbWidthPct as a % of the *stage width* -- never overlaps the avatar,
+  // regardless of the box's aspect ratio (mixing a stage-width-relative
+  // size with a box-height-relative offset was exactly how the previous
+  // version ended up with an orb big/low enough to completely cover N --
+  // reported with a screenshot). Working entirely in this function's own
+  // pixel math instead sidesteps that.
+  function genkiOrbStagePosition(box, orbWidthPct) {
     const stageRect = stage.getBoundingClientRect();
     const boxRect = box.getBoundingClientRect();
+    const orbRadiusPx = (orbWidthPct / 100) * stageRect.width / 2;
+    const gapPx = boxRect.height * 0.05; // small breathing room above the raised hands
     const x = boxRect.left + boxRect.width / 2;
-    const y = boxRect.top - boxRect.height * liftFrac;
+    const y = boxRect.top - gapPx - orbRadiusPx;
     return {
       leftPct: ((x - stageRect.left) / stageRect.width) * 100,
       topPct: ((y - stageRect.top) / stageRect.height) * 100,
@@ -1404,7 +1411,7 @@
   // N's charge: hop up (a CSS class + transition on the already-on-screen
   // avatar box -- unlike a freshly-created element, an existing element's
   // transitions fire reliably, so this one's safe to animate rather than
-  // pop instantly) into GENKI1.png, with a huge energy orb floating above.
+  // pop instantly) into GENKI1.png, with an energy orb floating above the head.
   function beginGenkiCharge(uid) {
     const target = resolveAvatarPoseTarget(uid);
     if (!target) return;
@@ -1422,7 +1429,7 @@
     if (prevFlight) { prevFlight.el.remove(); genkiFlights.delete(uid); }
 
     clearChargeFx(uid);
-    const pos = stagePercentAboveBox(box, GENKI_ORB_LIFT_FRAC);
+    const pos = genkiOrbStagePosition(box, GENKI_ORB_WIDTH_PCT);
     const orbEl = document.createElement('div');
     orbEl.className = 'genki-orb';
     orbEl.style.left = pos.leftPct + '%';

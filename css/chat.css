@@ -248,21 +248,24 @@ body{ min-height: calc(100dvh + 1px); overflow-x: hidden; }
   opacity: 0;
 }
 /* N's genki dama: the same soft hot-flash treatment as .beam-flare/
-   .beam-impact but huge, per the Dragon Ball spirit-bomb reference art the
-   user attached, and continuously crackling (a self-contained CSS
-   @keyframes animation, not one that gets toggled from JS after creation --
-   see the .charge-beam comment on why that distinction matters here). */
+   .beam-impact, per the Dragon Ball spirit-bomb reference art the user
+   attached, and continuously crackling (a self-contained CSS @keyframes
+   animation, not one that gets toggled from JS after creation -- see the
+   .charge-beam comment on why that distinction matters here). Width must
+   match GENKI_ORB_WIDTH_PCT in js/chat.js, which uses this same number to
+   compute how far above N's head to float it so the two stay in sync
+   (change one, change the other). */
 .genki-orb{
   position: absolute;
-  width: 42%;
+  width: 15%;
   aspect-ratio: 1;
   border-radius: 50%;
   transform: translate(-50%, -50%);
   background: radial-gradient(circle, #fff 0%, #fff 18%, var(--cyan) 42%, rgba(0,224,255,0.5) 62%, rgba(0,224,255,0.15) 78%, transparent 88%);
   box-shadow:
-    0 0 1.4vw 0.6vw #fff,
-    0 0 4vw 1.8vw rgba(0,224,255,0.9),
-    0 0 8vw 3.4vw rgba(0,224,255,0.5);
+    0 0 0.5vw 0.2vw #fff,
+    0 0 1.4vw 0.65vw rgba(0,224,255,0.9),
+    0 0 2.8vw 1.2vw rgba(0,224,255,0.5);
   pointer-events: none;
   z-index: 6;
   opacity: 0;
