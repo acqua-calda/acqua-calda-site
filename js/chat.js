@@ -133,7 +133,7 @@
   let myUid = null;
   let presenceRef = null;
   let myEl = null;
-  const myState = { x: WORLD_W / 2, y: WORLD_H / 2, facing: 'right' };
+  const myState = { x: WORLD_W / 2, y: WORLD_H / 2, facing: 'left' };
   const keys = new Set();
   const remoteAvatars = new Map(); // uid -> { el }
   let lastSendAt = 0;
@@ -350,7 +350,9 @@
   // scaleX(var(--facing-scale)) into its own transform so the mirror
   // survives regardless of which animation (if any) is currently active.
   function setAvatarFacing(el, facing) {
-    el.querySelector('.chat-avatar-img').style.setProperty('--facing-scale', facing === 'left' ? '-1' : '1');
+    // Every avatar's base art is drawn facing left, so left needs no mirror
+    // and only right has to flip it via scaleX(-1).
+    el.querySelector('.chat-avatar-img').style.setProperty('--facing-scale', facing === 'right' ? '-1' : '1');
   }
   function showBubble(el, text) {
     const bubble = el.querySelector('.chat-bubble');
@@ -1240,8 +1242,8 @@
   // Where the hands sit within each pose image, as a fraction of the avatar
   // box's own width/height measured from its bottom-center (the box's
   // translate(-50%,-100%) anchor, i.e. the avatar's world position), for a
-  // facing-right pose -- mirrored for facing-left. Re-measure these if the
-  // pose art is ever redrawn/re-cropped.
+  // facing-left pose (the base art) -- mirrored for facing-right. Re-measure
+  // these if the pose art is ever redrawn/re-cropped.
   const CHARGE_HAND_ANCHOR = { fx: -0.167, fy: 0.532 };
   const FIRE_HAND_ANCHOR = { fx: 0.257, fy: 0.669 };
 
@@ -1261,7 +1263,7 @@
   const genkiFlights = new Map(); // uid -> in-flight Genki Dama state, updated once per frame from loop()
 
   function facingOf(uid, entry) {
-    return uid === myUid ? myState.facing : (entry ? entry.targetFacing : 'right');
+    return uid === myUid ? myState.facing : (entry ? entry.targetFacing : 'left');
   }
 
   // Screen position of the hands, as a percentage of the room stage, given
@@ -1269,7 +1271,7 @@
   function handStagePercent(box, anchor, facing) {
     const stageRect = stage.getBoundingClientRect();
     const boxRect = box.getBoundingClientRect();
-    const sign = facing === 'left' ? -1 : 1;
+    const sign = facing === 'right' ? -1 : 1;
     const handX = boxRect.left + boxRect.width / 2 + sign * anchor.fx * boxRect.width;
     const handY = boxRect.bottom - anchor.fy * boxRect.height;
     return {
@@ -1787,7 +1789,7 @@
     const moved = Math.abs(newX - entry.targetX) > 0.5 || Math.abs(newY - entry.targetY) > 0.5;
     entry.targetX = newX;
     entry.targetY = newY;
-    entry.targetFacing = data.facing || 'right';
+    entry.targetFacing = data.facing || 'left';
     if (moved) {
       // Sender only pushes updates while actually moving, so if no fresher
       // position shows up soon, assume they've stopped and drop the bob animation.
@@ -1816,10 +1818,10 @@
       const startY = data.y || WORLD_H / 2;
       const el = createAvatarEl(false);
       positionAvatarEl(el, startX, startY);
-      setAvatarFacing(el, data.facing || 'right');
+      setAvatarFacing(el, data.facing || 'left');
       remoteAvatars.set(uid, {
         el, curX: startX, curY: startY,
-        targetX: startX, targetY: startY, targetFacing: data.facing || 'right',
+        targetX: startX, targetY: startY, targetFacing: data.facing || 'left',
         lastMessageAt: null, walkTimer: null,
       });
       updateRemoteAvatar(uid, data);
