@@ -679,6 +679,85 @@
     openRhythmConfirm();
   });
 
+  /* ---------- monitor button (world object, opens js/youtube-widget.js) ---------- */
+  // Same long-press-to-drag / tap-to-open interaction as popn.png above --
+  // deliberately a standalone draggable prop rather than a tap zone on the
+  // background image itself (see Cloud.md's "見送った機能" entry for why the
+  // cover-fit hit-testing approach was dropped in favor of this).
+  const MONITOR_POS_KEY = 'acquaHouseMonitorPos';
+  const MONITOR_DEFAULT_POS = { x: 700, y: 220 };
+
+  function loadMonitorPos() {
+    try {
+      const raw = JSON.parse(localStorage.getItem(MONITOR_POS_KEY));
+      if (raw && Number.isFinite(raw.x) && Number.isFinite(raw.y)) return raw;
+    } catch { /* ignore */ }
+    return { ...MONITOR_DEFAULT_POS };
+  }
+  function saveMonitorPos(pos) {
+    try { localStorage.setItem(MONITOR_POS_KEY, JSON.stringify(pos)); } catch { /* ignore */ }
+  }
+
+  const monitorBtn = document.createElement('button');
+  monitorBtn.type = 'button';
+  monitorBtn.className = 'acqua-monitor-btn';
+  monitorBtn.setAttribute('aria-label', 'YouTubeを見る（長押しで移動できます）');
+  monitorBtn.innerHTML = '<img src="img/monitor.png" alt="">';
+  let monitorPos = loadMonitorPos();
+  positionWorldEl(monitorBtn, monitorPos.x, monitorPos.y);
+  stage.appendChild(monitorBtn);
+
+  let monitorLongPressTimer = null;
+  let monitorDragging = false;
+  let monitorDidDrag = false;
+
+  function startMonitorDrag() {
+    monitorDragging = true;
+    monitorDidDrag = true;
+    monitorBtn.classList.add('is-dragging');
+  }
+  function endMonitorDrag() {
+    if (!monitorDragging) return;
+    monitorDragging = false;
+    monitorBtn.classList.remove('is-dragging');
+    saveMonitorPos(monitorPos);
+  }
+
+  monitorBtn.addEventListener('pointerdown', (e) => {
+    if (e.button !== 0 && e.pointerType === 'mouse') return;
+    const startX = e.clientX, startY = e.clientY;
+    monitorDidDrag = false;
+    clearTimeout(monitorLongPressTimer);
+    monitorLongPressTimer = setTimeout(startMonitorDrag, POPN_LONG_PRESS_MS); // same drag-gesture thresholds as popn.png
+
+    try { monitorBtn.setPointerCapture(e.pointerId); } catch { /* ignore */ }
+
+    const onMove = (ev) => {
+      if (monitorDragging) {
+        monitorPos = clientToWorld(ev.clientX, ev.clientY);
+        positionWorldEl(monitorBtn, monitorPos.x, monitorPos.y);
+      } else if (Math.hypot(ev.clientX - startX, ev.clientY - startY) > POPN_MOVE_CANCEL_PX) {
+        clearTimeout(monitorLongPressTimer);
+      }
+    };
+    const onUp = () => {
+      clearTimeout(monitorLongPressTimer);
+      endMonitorDrag();
+      try { monitorBtn.releasePointerCapture(e.pointerId); } catch { /* ignore */ }
+      monitorBtn.removeEventListener('pointermove', onMove);
+      monitorBtn.removeEventListener('pointerup', onUp);
+      monitorBtn.removeEventListener('pointercancel', onUp);
+    };
+    monitorBtn.addEventListener('pointermove', onMove);
+    monitorBtn.addEventListener('pointerup', onUp);
+    monitorBtn.addEventListener('pointercancel', onUp);
+  });
+
+  monitorBtn.addEventListener('click', () => {
+    if (monitorDidDrag) { monitorDidDrag = false; return; } // this click just ended a drag -- don't also open the panel
+    if (window.YoutubeWidget) window.YoutubeWidget.open();
+  });
+
   /* ---------- session lifecycle ---------- */
   let rhythmState = null;
 

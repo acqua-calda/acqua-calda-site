@@ -19,7 +19,6 @@
   const APPLYING_REMOTE_MS = 3000;  // how long we ignore local playback events after applying a remote update (covers typical buffering time for the new video to actually start)
 
   const overlay = document.getElementById('ytOverlay');
-  const openBtn = document.getElementById('chatYoutubeBtn');
   const closeBtn = document.getElementById('ytCloseBtn');
   const searchForm = document.getElementById('ytSearchForm');
   const searchInput = document.getElementById('ytSearchInput');
@@ -30,7 +29,7 @@
   const playerBox = document.getElementById('ytPlayerBox');
   const nowPlayingEl = document.getElementById('ytNowPlaying');
 
-  if (!overlay || !openBtn) return;
+  if (!overlay) return;
 
   const apiKey = (typeof YOUTUBE_API_KEY === 'string') ? YOUTUBE_API_KEY : '';
   const keyConfigured = !!apiKey && apiKey.indexOf('YOUR_') !== 0;
@@ -103,7 +102,6 @@
       player.pauseVideo();
     }
   }
-  openBtn.addEventListener('click', openPanel);
   closeBtn.addEventListener('click', closePanel);
   overlay.addEventListener('click', (e) => { if (e.target === overlay) closePanel(); });
   document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !overlay.hidden) closePanel(); });

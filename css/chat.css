@@ -628,6 +628,24 @@ body{ min-height: calc(100dvh + 1px); overflow-x: hidden; }
   50%{ transform: translate(-50%, -100%) translateY(-6%); }
 }
 
+/* ---------- monitor button (world object, opens the YouTube widget) ---------- */
+.acqua-monitor-btn{
+  position: absolute;
+  width: 11%;
+  aspect-ratio: 320 / 241;
+  transform: translate(-50%, -100%);
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  touch-action: none;
+  z-index: 21; /* same layer as popn.png -- see its comment above */
+  filter: drop-shadow(0 4px 10px rgba(0,0,0,0.5));
+}
+.acqua-monitor-btn img{ width: 100%; height: 100%; object-fit: contain; }
+.acqua-monitor-btn:hover{ filter: drop-shadow(0 4px 10px rgba(0,0,0,0.5)) drop-shadow(0 0 10px rgba(0,224,255,0.6)); }
+.acqua-monitor-btn.is-dragging{ filter: drop-shadow(0 4px 14px rgba(0,0,0,0.6)) drop-shadow(0 0 14px rgba(0,224,255,0.85)); cursor: grabbing; }
+
 .rhythm-note{
   position: absolute;
   transform: translate(-50%, -50%);
