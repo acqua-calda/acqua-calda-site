@@ -66,27 +66,6 @@
   padding: 16px;
 }
 
-.yt-player-wrap{ margin-bottom: 18px; }
-.yt-player-wrap[hidden]{ display: none; }
-.yt-player-box{
-  position: relative;
-  width: 100%;
-  aspect-ratio: 16 / 9;
-  background: #000;
-  border-radius: 12px;
-  overflow: hidden;
-}
-.yt-player-box iframe{
-  position: absolute; inset: 0;
-  width: 100% !important; height: 100% !important;
-  border: 0;
-}
-.yt-now-playing{
-  margin: 10px 2px 0;
-  font-size: 13px;
-  color: var(--fg-dim);
-}
-
 .yt-status{
   color: var(--fg-dim);
   font-size: 13px;
@@ -140,3 +119,56 @@
   .yt-panel{ max-height: 100%; border-radius: 0; }
   .yt-grid{ grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 12px; }
 }
+
+/* ---------- in-room screen ----------
+   Appended into #chatStage by js/youtube-widget.js so it lives in the room
+   itself (over the big window in aqua_House_screen.png) instead of a modal
+   that blocks the avatars -- watching together is the whole point. Sized/
+   positioned to roughly match that window; z-index 2 keeps it above the
+   background but below avatars (5) so someone can walk in front of it. */
+.yt-room-screen{
+  position: absolute;
+  left: 23%; top: 3%;
+  width: 57%; height: 66%;
+  z-index: 2;
+  border-radius: 4px;
+  overflow: hidden;
+  background: #000;
+  box-shadow: 0 0 0 2px rgba(0,224,255,0.3), 0 8px 30px rgba(0,0,0,0.6);
+}
+.yt-room-screen[hidden]{ display: none; }
+.yt-room-screen-frame{ position: absolute; inset: 0; }
+.yt-room-screen-frame iframe{
+  position: absolute; inset: 0;
+  width: 100% !important; height: 100% !important;
+  border: 0;
+}
+.yt-room-screen-bar{
+  position: absolute; left: 0; right: 0; top: 0;
+  z-index: 1;
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 8px;
+  padding: 3px 5px;
+  background: linear-gradient(to bottom, rgba(0,0,0,0.7), transparent);
+  pointer-events: none; /* clicks fall through to the player except on the close button */
+}
+.yt-room-screen-title{
+  font-size: 10px;
+  color: rgba(255,255,255,0.85);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.yt-room-screen-close{
+  pointer-events: auto;
+  flex-shrink: 0;
+  font-size: 11px;
+  line-height: 1;
+  color: rgba(255,255,255,0.85);
+  background: rgba(0,0,0,0.45);
+  border: none;
+  border-radius: 50%;
+  width: 18px; height: 18px;
+  cursor: pointer;
+}
+.yt-room-screen-close:hover{ background: rgba(0,0,0,0.75); }

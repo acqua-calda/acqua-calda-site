@@ -13,7 +13,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=Baloo+2:wght@600;700;800&family=Noto+Sans+JP:wght@300;400;500;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="css/style.css?v=25">
 <link rel="stylesheet" href="css/chat.css?v=35">
-<link rel="stylesheet" href="css/youtube-widget.css?v=1">
+<link rel="stylesheet" href="css/youtube-widget.css?v=2">
 </head>
 <body>
 
@@ -122,7 +122,9 @@
     <p>スマホを横向きにしてください</p>
   </div>
 
-  <!-- ===== YOUTUBE SEARCH/PLAY WIDGET ===== -->
+  <!-- ===== YOUTUBE SEARCH WIDGET (picks a video -- playback itself renders
+       in-room over the window, appended into #chatStage by
+       js/youtube-widget.js, not here) ===== -->
   <div class="yt-overlay" id="ytOverlay" hidden>
     <div class="yt-panel">
       <div class="yt-panel-header">
@@ -133,10 +135,6 @@
         <button type="button" class="yt-close-btn" id="ytCloseBtn" aria-label="閉じる">✕</button>
       </div>
       <div class="yt-body">
-        <div class="yt-player-wrap" id="ytPlayerWrap" hidden>
-          <div class="yt-player-box" id="ytPlayerBox"></div>
-          <p class="yt-now-playing" id="ytNowPlaying"></p>
-        </div>
         <p class="yt-status" id="ytStatus" hidden></p>
         <div class="yt-grid" id="ytGrid"></div>
       </div>
@@ -170,6 +168,6 @@
 <script src="js/firebase-config.js?v=2"></script>
 <script src="js/chat.js?v=60"></script>
 <script src="js/youtube-config.js?v=2"></script>
-<script src="js/youtube-widget.js?v=3"></script>
+<script src="js/youtube-widget.js?v=4"></script>
 </body>
 </html>

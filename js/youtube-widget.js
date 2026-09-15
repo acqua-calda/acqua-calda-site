@@ -18,18 +18,44 @@
   const POLL_MS = 1000;             // how often we sample currentTime to detect seeks while playing
   const APPLYING_REMOTE_MS = 3000;  // how long we ignore local playback events after applying a remote update (covers typical buffering time for the new video to actually start)
 
-  const overlay = document.getElementById('ytOverlay');
+  const overlay = document.getElementById('ytOverlay'); // the search/browse modal only -- NOT playback, see below
   const closeBtn = document.getElementById('ytCloseBtn');
   const searchForm = document.getElementById('ytSearchForm');
   const searchInput = document.getElementById('ytSearchInput');
   const searchBtn = document.getElementById('ytSearchBtn');
   const gridEl = document.getElementById('ytGrid');
   const statusEl = document.getElementById('ytStatus');
-  const playerWrap = document.getElementById('ytPlayerWrap');
-  const playerBox = document.getElementById('ytPlayerBox');
-  const nowPlayingEl = document.getElementById('ytNowPlaying');
+  const stageEl = document.getElementById('chatStage');
 
-  if (!overlay) return;
+  if (!overlay || !stageEl) return;
+
+  // The actual video renders inside the room itself (over the big window in
+  // aqua_House_screen.png -- see the .yt-room-screen rules in
+  // css/youtube-widget.css), not in the search modal above, so that
+  // everyone's avatars/chat/movement stay usable while watching together.
+  const roomScreen = document.createElement('div');
+  roomScreen.className = 'yt-room-screen';
+  roomScreen.hidden = true;
+  roomScreen.innerHTML = `
+    <div class="yt-room-screen-frame" id="ytRoomScreenFrame"></div>
+    <div class="yt-room-screen-bar">
+      <span class="yt-room-screen-title" id="ytRoomScreenTitle"></span>
+      <button type="button" class="yt-room-screen-close" id="ytRoomScreenClose" aria-label="閉じる">✕</button>
+    </div>
+  `;
+  stageEl.appendChild(roomScreen);
+  const roomScreenFrame = document.getElementById('ytRoomScreenFrame');
+  const roomScreenTitle = document.getElementById('ytRoomScreenTitle');
+  const roomScreenClose = document.getElementById('ytRoomScreenClose');
+
+  let locallyHidden = false; // per-viewer-only "hide the screen" -- doesn't touch shared state, doesn't stop it for anyone else
+  function updateRoomScreenVisibility() {
+    roomScreen.hidden = !currentVideoId || locallyHidden;
+  }
+  roomScreenClose.addEventListener('click', () => {
+    locallyHidden = true;
+    updateRoomScreenVisibility();
+  });
 
   const apiKey = (typeof YOUTUBE_API_KEY === 'string') ? YOUTUBE_API_KEY : '';
   const keyConfigured = !!apiKey && apiKey.indexOf('YOUR_') !== 0;
@@ -71,7 +97,6 @@
   let currentVideoId = null;
   let applyingRemote = false;
   let applyingRemoteResetTimer = null;
-  let suppressBroadcastOnce = false; // set right before a purely-local pause (e.g. closing the panel) that shouldn't stop playback for everyone else
   let lastAppliedUpdatedAt = 0;
   let lastKnownSeconds = 0;
   let lastPollAt = 0;
@@ -83,24 +108,15 @@
     statusEl.textContent = msg;
   }
 
-  /* ---------- panel open/close ---------- */
+  /* ---------- search panel open/close (playback is unaffected either way -- see roomScreen above) ---------- */
   function openPanel() {
     overlay.hidden = false;
     document.body.style.overflow = 'hidden';
     if (!gridEl.dataset.loaded) loadMostPopular();
-    if (db) {
-      db.ref('youtube').once('value')
-        .then((snap) => { const data = snap.val(); if (data && data.videoId) applyRemoteState(data); })
-        .catch(() => {});
-    }
   }
   function closePanel() {
     overlay.hidden = true;
     document.body.style.overflow = '';
-    if (player && playerReady && player.getPlayerState && player.getPlayerState() === YT.PlayerState.PLAYING) {
-      suppressBroadcastOnce = true;
-      player.pauseVideo();
-    }
   }
   closeBtn.addEventListener('click', closePanel);
   overlay.addEventListener('click', (e) => { if (e.target === overlay) closePanel(); });
@@ -156,7 +172,10 @@
       channelEl.textContent = snip.channelTitle || '';
 
       card.append(thumbWrap, titleEl, channelEl);
-      card.addEventListener('click', () => selectVideo(videoId, snip.title || ''));
+      card.addEventListener('click', () => {
+        selectVideo(videoId, snip.title || '');
+        closePanel(); // picked something -- get the search list out of the way so the room screen is visible
+      });
       gridEl.appendChild(card);
     });
     if (!items.length) setStatus('見つかりませんでした。');
@@ -212,7 +231,7 @@
     if (playerCreatePromise) return playerCreatePromise;
     playerCreatePromise = ensureIframeApi().then(() => new Promise((resolve) => {
       const mount = document.createElement('div');
-      playerBox.appendChild(mount);
+      roomScreenFrame.appendChild(mount);
       player = new YT.Player(mount, {
         width: '100%',
         height: '100%',
@@ -228,9 +247,11 @@
 
   function selectVideo(videoId, title, opts) {
     opts = opts || {};
+    const isNewVideo = videoId !== currentVideoId;
+    if (isNewVideo) locallyHidden = false; // a genuine new pick should reappear even if this viewer had dismissed the previous one
     currentVideoId = videoId;
-    playerWrap.hidden = false;
-    nowPlayingEl.textContent = title || '';
+    updateRoomScreenVisibility();
+    roomScreenTitle.textContent = title || '';
     ensurePlayer().then((p) => {
       p.loadVideoById({ videoId, startSeconds: opts.startSeconds || 0 });
       if (opts.paused) p.pauseVideo();
@@ -241,15 +262,13 @@
 
   function handlePlayerStateChange(e) {
     if (applyingRemote) return; // caused by us applying a remote update, not a local user action -- don't echo it back
-    const skipBroadcast = suppressBroadcastOnce;
-    suppressBroadcastOnce = false;
     if (e.data === YT.PlayerState.PLAYING) {
       fire(hooks.playState, true, player.getCurrentTime());
-      if (!skipBroadcast) broadcastState({ isPlaying: true, seconds: player.getCurrentTime() });
+      broadcastState({ isPlaying: true, seconds: player.getCurrentTime() });
       startPolling();
     } else if (e.data === YT.PlayerState.PAUSED) {
       fire(hooks.playState, false, player.getCurrentTime());
-      if (!skipBroadcast) broadcastState({ isPlaying: false, seconds: player.getCurrentTime() });
+      broadcastState({ isPlaying: false, seconds: player.getCurrentTime() });
     }
   }
 
@@ -310,13 +329,12 @@
     fire(hooks.playState, !!data.isPlaying, data.seconds || 0);
   }
 
-  // Only reacts while the panel is open -- openPanel() above does its own
-  // once('value') resync on every open, so state changes that happen while
-  // this tab has the panel closed are simply picked up fresh next time it
-  // opens, instead of silently building/loading a hidden player.
+  // The room screen is part of the room itself now (not gated behind the
+  // search panel), so this listens unconditionally -- it also fires once
+  // immediately on attach with whatever's currently in the DB, which is what
+  // shows the in-progress video to someone who just walked into the room.
   if (db) {
     db.ref('youtube').on('value', (snap) => {
-      if (overlay.hidden) return;
       const data = snap.val();
       if (data && data.videoId) applyRemoteState(data);
     });

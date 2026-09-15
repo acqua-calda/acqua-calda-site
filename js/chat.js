@@ -685,7 +685,7 @@
   // background image itself (see Cloud.md's "見送った機能" entry for why the
   // cover-fit hit-testing approach was dropped in favor of this).
   const MONITOR_POS_KEY = 'acquaHouseMonitorPos';
-  const MONITOR_DEFAULT_POS = { x: 700, y: 220 };
+  const MONITOR_DEFAULT_POS = { x: 800, y: 430 }; // bottom-right corner, clear of the in-room YouTube screen over the big window (see js/youtube-widget.js)
 
   function loadMonitorPos() {
     try {
