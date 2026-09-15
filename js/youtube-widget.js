@@ -124,15 +124,17 @@
     statusEl.textContent = msg;
   }
 
-  /* ---------- search panel open/close ---------- */
+  /* ---------- search panel: fully shared (open state, typed query, results) ---------- */
   function openPanel() {
     overlay.hidden = false;
     document.body.style.overflow = 'hidden';
     if (!gridEl.dataset.loaded) loadMostPopular();
+    broadcastSearchState({ open: true, query: searchInput.value || '' }); // query included so the very first-ever write already satisfies the required-fields rule
   }
   function closePanel() {
     overlay.hidden = true;
     document.body.style.overflow = '';
+    broadcastSearchState({ open: false });
   }
   closeBtn.addEventListener('click', closePanel);
   overlay.addEventListener('click', (e) => { if (e.target === overlay) closePanel(); });
@@ -156,17 +158,25 @@
       });
   }
 
+  // Raw API items are trimmed down to just what a card needs before
+  // rendering -- this same slim shape is what gets JSON-stringified into
+  // Firebase (see broadcastSearchState) so every viewer renders identical
+  // results without each of them separately hitting the Data API (and
+  // burning quota) for the same query.
+  function slimItems(items) {
+    return items.map((item) => {
+      const videoId = typeof item.id === 'string' ? item.id : (item.id && item.id.videoId);
+      const snip = item.snippet || {};
+      const thumbs = snip.thumbnails || {};
+      const thumbUrl = (thumbs.medium || thumbs.high || thumbs.default || {}).url;
+      return { videoId, title: snip.title || '', channelTitle: snip.channelTitle || '', thumbUrl };
+    }).filter((it) => it.videoId && it.thumbUrl);
+  }
+
   function renderGrid(items) {
     gridEl.innerHTML = '';
     gridEl.dataset.loaded = '1';
-    items.forEach((item) => {
-      const videoId = typeof item.id === 'string' ? item.id : (item.id && item.id.videoId);
-      if (!videoId) return;
-      const snip = item.snippet;
-      const thumbs = snip.thumbnails || {};
-      const thumbUrl = (thumbs.medium || thumbs.high || thumbs.default || {}).url;
-      if (!thumbUrl) return;
-
+    items.forEach((it) => {
       const card = document.createElement('button');
       card.type = 'button';
       card.className = 'yt-card';
@@ -174,22 +184,22 @@
       const thumbWrap = document.createElement('span');
       thumbWrap.className = 'yt-thumb-wrap';
       const img = document.createElement('img');
-      img.src = thumbUrl;
+      img.src = it.thumbUrl;
       img.alt = '';
       img.loading = 'lazy';
       thumbWrap.appendChild(img);
 
       const titleEl = document.createElement('span');
       titleEl.className = 'yt-card-title';
-      titleEl.textContent = snip.title || '';
+      titleEl.textContent = it.title || '';
 
       const channelEl = document.createElement('span');
       channelEl.className = 'yt-card-channel';
-      channelEl.textContent = snip.channelTitle || '';
+      channelEl.textContent = it.channelTitle || '';
 
       card.append(thumbWrap, titleEl, channelEl);
       card.addEventListener('click', () => {
-        selectVideo(videoId, snip.title || '');
+        selectVideo(it.videoId, it.title || '');
         closePanel(); // picked something -- get the search list out of the way so the room screen is visible
       });
       gridEl.appendChild(card);
@@ -201,7 +211,12 @@
     if (!keyConfigured) { setStatus('YouTube機能を使うには js/youtube-config.js に YOUTUBE_API_KEY を設定してください。'); return; }
     setStatus('読み込み中...');
     api('videos', { part: 'snippet', chart: 'mostPopular', regionCode: 'JP', maxResults: String(MAX_RESULTS) })
-      .then((data) => { setStatus(''); renderGrid(data.items || []); })
+      .then((data) => {
+        setStatus('');
+        const items = slimItems(data.items || []);
+        renderGrid(items);
+        broadcastSearchState({ query: '', resultsJson: JSON.stringify(items) });
+      })
       .catch((err) => { setStatus('動画一覧を取得できませんでした（' + err.message + '）'); });
   }
 
@@ -209,9 +224,24 @@
     if (!keyConfigured) { setStatus('YouTube機能を使うには js/youtube-config.js に YOUTUBE_API_KEY を設定してください。'); return; }
     setStatus('検索中...');
     api('search', { part: 'snippet', type: 'video', q: query, maxResults: String(MAX_RESULTS) })
-      .then((data) => { setStatus(''); renderGrid(data.items || []); })
+      .then((data) => {
+        setStatus('');
+        const items = slimItems(data.items || []);
+        renderGrid(items);
+        broadcastSearchState({ query, resultsJson: JSON.stringify(items) });
+      })
       .catch((err) => { setStatus('検索に失敗しました（' + err.message + '）'); });
   }
+
+  // Broadcasts the typed query live, keystroke by keystroke (lightly
+  // debounced), so everyone's search box mirrors whoever's typing -- but
+  // never overwrites *your own* box while you're the one actively focused
+  // on it (see applySearchState below).
+  let queryDebounceTimer = null;
+  searchInput.addEventListener('input', () => {
+    clearTimeout(queryDebounceTimer);
+    queryDebounceTimer = setTimeout(() => { broadcastSearchState({ query: searchInput.value }); }, 120);
+  });
 
   searchForm.addEventListener('submit', (e) => {
     e.preventDefault();
@@ -379,6 +409,47 @@
     db.ref('youtube').on('value', (snap) => {
       const data = snap.val();
       if (data) applyRemoteState(data); // videoId may be '' (stopped) -- still needs to reach applyRemoteState to clear everyone's screen
+    });
+  }
+
+  /* ---------- search panel sync (separate node -- see Cloud.md's RTDB rules) ---------- */
+  function broadcastSearchState(patch) {
+    if (!db) return;
+    const payload = Object.assign({
+      updatedAt: firebase.database.ServerValue.TIMESTAMP,
+      updatedBy: myUid(),
+    }, patch);
+    db.ref('youtubeSearch').update(payload).catch(() => {});
+  }
+
+  let lastAppliedSearchUpdatedAt = 0;
+  let lastAppliedResultsJson = null;
+  function applySearchState(data) {
+    if (data.updatedAt && data.updatedAt <= lastAppliedSearchUpdatedAt) return;
+    lastAppliedSearchUpdatedAt = data.updatedAt || Date.now();
+
+    if (typeof data.open === 'boolean') {
+      overlay.hidden = !data.open;
+      document.body.style.overflow = data.open ? 'hidden' : '';
+    }
+    // Never stomp on what THIS viewer is actively typing -- only mirror
+    // incoming text while their own box isn't focused.
+    if (typeof data.query === 'string' && document.activeElement !== searchInput) {
+      searchInput.value = data.query;
+    }
+    if (typeof data.resultsJson === 'string' && data.resultsJson !== lastAppliedResultsJson) {
+      lastAppliedResultsJson = data.resultsJson;
+      try {
+        setStatus('');
+        renderGrid(JSON.parse(data.resultsJson));
+      } catch (err) { /* malformed/stale -- leave whatever's already shown */ }
+    }
+  }
+
+  if (db) {
+    db.ref('youtubeSearch').on('value', (snap) => {
+      const data = snap.val();
+      if (data) applySearchState(data);
     });
   }
 })();

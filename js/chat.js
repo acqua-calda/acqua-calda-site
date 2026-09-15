@@ -1481,12 +1481,21 @@
   function fireBeam(uid, box, facing) {
     clearChargeFx(uid);
     const pos = handStagePercent(box, FIRE_HAND_ANCHOR, facing);
+    // fire_pose.png itself was drawn reaching toward the right in its
+    // unmirrored (facing==='left') form -- opposite of every other pose's
+    // "base art faces left" convention -- so the hand position above (which
+    // tracks the art correctly) sits on the character's right when facing
+    // left. Only the shoot *direction* needs correcting for that: it has to
+    // point the same way the hands are actually drawn, i.e. the reverse of
+    // the normal facing-left-shoots-left assumption. handStagePercent above
+    // is unaffected -- it already matches the art.
+    const shootFacing = facing === 'left' ? 'right' : 'left';
 
     const beamEl = document.createElement('div');
     beamEl.className = 'charge-beam';
     beamEl.style.top = pos.topPct + '%';
     beamEl.style.width = BEAM_MAX_WIDTH_PCT + '%';
-    if (facing === 'left') {
+    if (shootFacing === 'left') {
       beamEl.style.left = (pos.leftPct - BEAM_MAX_WIDTH_PCT) + '%';
       beamEl.style.transformOrigin = 'right center';
     } else {
@@ -1503,7 +1512,7 @@
     stage.appendChild(flareEl);
 
     // the explosion at the far tip, where the beam actually lands
-    const tipLeftPct = facing === 'left' ? pos.leftPct - BEAM_MAX_WIDTH_PCT : pos.leftPct + BEAM_MAX_WIDTH_PCT;
+    const tipLeftPct = shootFacing === 'left' ? pos.leftPct - BEAM_MAX_WIDTH_PCT : pos.leftPct + BEAM_MAX_WIDTH_PCT;
     const impactEl = document.createElement('div');
     impactEl.className = 'beam-impact';
     impactEl.style.left = tipLeftPct + '%';
@@ -1545,7 +1554,7 @@
     const originWorldX = (pos.leftPct / 100) * WORLD_W;
     const originWorldY = (pos.topPct / 100) * WORLD_H;
     for (let i = 0; i < BEAM_HIT_TICKS; i++) {
-      setTimeout(() => checkBeamHits(uid, originWorldX, originWorldY, facing), (i * BEAM_HOLD_MS) / BEAM_HIT_TICKS);
+      setTimeout(() => checkBeamHits(uid, originWorldX, originWorldY, shootFacing), (i * BEAM_HOLD_MS) / BEAM_HIT_TICKS);
     }
   }
 
