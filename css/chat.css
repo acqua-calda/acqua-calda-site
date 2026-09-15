@@ -534,6 +534,31 @@ body{ min-height: calc(100dvh + 1px); overflow-x: hidden; }
 }
 .chat-entry-card h2{ font-family: var(--font-display); font-size: 20px; margin: 0 0 6px; }
 .chat-entry-card p{ color: var(--fg-dim); font-size: 13px; margin: 0 0 16px; }
+
+/* ---------- top screen (version display, shown before character select) ---------- */
+.chat-top-card{ padding: 40px 24px; }
+.chat-top-title{
+  font-family: var(--font-display);
+  font-size: clamp(22px, 5vw, 32px);
+  letter-spacing: 0.08em;
+  margin: 0 0 8px;
+  background: linear-gradient(90deg, var(--cyan), var(--pink));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+.chat-top-version{ font-size: 12px !important; color: var(--fg-dim); margin: 0 0 28px !important; letter-spacing: 0.05em; }
+.chat-top-update-notice{
+  background: rgba(255,207,107,0.1);
+  border: 1px solid rgba(255,207,107,0.35);
+  border-radius: 10px;
+  padding: 14px 14px 16px;
+  margin: -14px 0 20px;
+}
+.chat-top-update-notice[hidden]{ display: none; }
+.chat-top-update-notice p{ font-size: 12px !important; color: #ffcf6b !important; margin: 0 0 12px !important; }
+.chat-top-update-actions{ display: flex; gap: 10px; justify-content: center; }
+.chat-top-update-actions .btn{ flex: 1; padding: 8px 0; font-size: 13px; }
 #entryNameInput{
   width: 100%; padding: 11px 14px; border-radius: 12px; margin-bottom: 16px;
   border: 1px solid var(--border); background: rgba(255,255,255,0.04); color: var(--fg); font-size: 14px;

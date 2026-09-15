@@ -12,7 +12,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=Baloo+2:wght@600;700;800&family=Noto+Sans+JP:wght@300;400;500;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="css/style.css?v=25">
-<link rel="stylesheet" href="css/chat.css?v=37">
+<link rel="stylesheet" href="css/chat.css?v=40">
 <link rel="stylesheet" href="css/youtube-widget.css?v=4">
 </head>
 <body>
@@ -141,6 +141,23 @@
     </div>
   </div>
 
+  <!-- ===== TOP SCREEN (shows the running version -- if this doesn't say the
+       latest version number, this tab is stale, see Cloud.md) ===== -->
+  <div class="chat-entry" id="chatTopScreen" hidden>
+    <div class="chat-entry-card chat-top-card">
+      <h2 class="chat-top-title">ACQUA HOUSE</h2>
+      <p class="chat-top-version" id="chatTopVersion"></p>
+      <div class="chat-top-update-notice" id="chatTopUpdateNotice" hidden>
+        <p>最新バージョンへのアップデートが必要です。アップデートしますか？</p>
+        <div class="chat-top-update-actions">
+          <button type="button" class="btn btn-primary" id="chatTopUpdateYesBtn">はい</button>
+          <button type="button" class="btn btn-outline" id="chatTopUpdateNoBtn">あとで</button>
+        </div>
+      </div>
+      <button class="btn btn-primary" id="chatTopEnterBtn">キャラクター選択へ</button>
+    </div>
+  </div>
+
   <!-- ===== ENTRY OVERLAY ===== -->
   <div class="chat-entry" id="chatEntry" hidden>
     <div class="chat-entry-card">
@@ -168,6 +185,6 @@
 <script src="js/firebase-config.js?v=2"></script>
 <script src="js/youtube-config.js?v=2"></script>
 <script src="js/youtube-widget.js?v=11"></script>
-<script src="js/chat.js?v=65"></script>
+<script src="js/chat.js?v=68"></script>
 </body>
 </html>

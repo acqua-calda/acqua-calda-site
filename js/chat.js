@@ -33,6 +33,10 @@
     { id: 'male', label: '男性' },
     { id: 'female', label: '女性' },
   ];
+  // Bump this whenever a deploy is worth being able to tell apart at a
+  // glance -- shown on the top screen before character select so a stale
+  // cached tab is obvious (it'll be missing/behind whatever's live).
+  const APP_VERSION = 'Ver1.2';
   const ADMIN_STORAGE_KEY = 'acquaHouseAdmin';
   const ADMIN_DURATION_MS = 24 * 60 * 60 * 1000; // must match js/script.js's ACCESS_KEY_DURATION_MS
   const WORLD_W = 900;
@@ -53,6 +57,12 @@
   const MOVE_KEYS = ['arrowup', 'arrowdown', 'arrowleft', 'arrowright', 'w', 'a', 's', 'd'];
 
   const stage = document.getElementById('chatStage');
+  const topScreen = document.getElementById('chatTopScreen');
+  const topVersionEl = document.getElementById('chatTopVersion');
+  const topEnterBtn = document.getElementById('chatTopEnterBtn');
+  const topUpdateNotice = document.getElementById('chatTopUpdateNotice');
+  const topUpdateYesBtn = document.getElementById('chatTopUpdateYesBtn');
+  const topUpdateNoBtn = document.getElementById('chatTopUpdateNoBtn');
   const entryOverlay = document.getElementById('chatEntry');
   const entryNameInput = document.getElementById('entryNameInput');
   const entryGenderTabs = document.getElementById('entryGenderTabs');
@@ -2192,6 +2202,46 @@
     }
   }
 
+  /* ---------- top screen (version check) ---------- */
+  if (topScreen && topEnterBtn) {
+    if (topVersionEl) topVersionEl.textContent = APP_VERSION;
+    topEnterBtn.addEventListener('click', () => {
+      topScreen.hidden = true;
+      openEntry();
+    });
+    if (topUpdateNoBtn) topUpdateNoBtn.addEventListener('click', () => { topUpdateNotice.hidden = true; });
+    if (topUpdateYesBtn) {
+      topUpdateYesBtn.addEventListener('click', () => {
+        // There's no API to wipe the browser's HTTP cache outright, so this
+        // does the next best thing: drop any Cache Storage entries (in case
+        // this page ever picks up a service worker) and then navigate to a
+        // URL this exact tab has never seen before (a fresh cache-busting
+        // query param), which forces a real fetch instead of a cached hit --
+        // the same effect as the Ctrl+Shift+R workaround noted in Cloud.md,
+        // just automatic.
+        const clearCaches = (window.caches && caches.keys)
+          ? caches.keys().then((keys) => Promise.all(keys.map((k) => caches.delete(k)))).catch(() => {})
+          : Promise.resolve();
+        clearCaches.then(() => {
+          const url = new URL(window.location.href);
+          url.searchParams.set('_fresh', Date.now().toString());
+          window.location.replace(url.toString());
+        });
+      });
+    }
+    // Compares this tab's own baked-in APP_VERSION against whatever's
+    // currently live in Firebase (always fresh -- unlike this very script,
+    // which could be sitting in a stale browser cache). Only ever meaningful
+    // for tabs that already have THIS check built in; a tab cached from
+    // before this existed has no way to learn it's out of date.
+    if (fbReady && db && topUpdateNotice) {
+      db.ref('appVersion').on('value', (snap) => {
+        const latest = snap.val();
+        topUpdateNotice.hidden = !latest || latest === APP_VERSION;
+      });
+    }
+  }
+
   /* ---------- init ---------- */
-  openEntry();
+  if (topScreen) topScreen.hidden = false; else openEntry(); // fall back straight to character select if the top screen markup is somehow missing
 })();
