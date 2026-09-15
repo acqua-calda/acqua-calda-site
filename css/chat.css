@@ -639,7 +639,7 @@ body{ min-height: calc(100dvh + 1px); overflow-x: hidden; }
 /* ---------- monitor button (world object, opens the YouTube widget) ---------- */
 .acqua-monitor-btn{
   position: absolute;
-  width: 11%;
+  width: 7.7%; /* 30% smaller than the original 11% */
   aspect-ratio: 320 / 241;
   transform: translate(-50%, -100%);
   background: none;

@@ -23,7 +23,7 @@
     { id: 'k', name: 'K', src: 'img/K/K.png', gender: 'female' },
     { id: 'l', name: 'L', src: 'img/L/L.png', gender: 'female' },
     { id: 'm', name: 'M', src: 'img/M/M.png', gender: 'female' },
-    { id: 'n', name: 'N', src: 'img/N/N.png', gender: 'female' },
+    { id: 'n', name: 'N', src: 'img/N/N.png', gender: 'female', restricted: true },
     { id: 'oz', name: 'OZ', src: 'img/OZ_kawaii/OZ_kawaii.png', restricted: true },
     { id: 'yuu', name: 'YUU', src: 'img/YUU_kawaii/YUU_kawaii.png', restricted: true },
   ];
