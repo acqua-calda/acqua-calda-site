@@ -291,12 +291,21 @@
     return playerCreatePromise;
   }
 
+  // Rapid-fire actions (pick a video, then immediately stop it before the
+  // player's even finished loading) used to race: a deferred
+  // ensurePlayer().then(...) callback from the FIRST action would still run
+  // and blindly call loadVideoById/pauseVideo once the player became ready,
+  // even though a later action had already changed what should be
+  // happening. Every deferred callback below re-checks the current state at
+  // the moment it actually runs instead of trusting what it captured when
+  // it was scheduled.
   function selectVideo(videoId, title, opts) {
     opts = opts || {};
     currentVideoId = videoId;
     updateRoomScreenVisibility();
     roomScreenTitle.textContent = title || '';
     ensurePlayer().then((p) => {
+      if (currentVideoId !== videoId) return; // superseded by a newer pick/stop while the player was still loading
       p.loadVideoById({ videoId, startSeconds: opts.startSeconds || 0 });
       if (opts.paused) p.pauseVideo();
     });
@@ -311,9 +320,9 @@
     currentVideoId = null;
     roomScreenTitle.textContent = '';
     updateRoomScreenVisibility();
-    if (player && playerReady && player.pauseVideo) {
+    if (playerCreatePromise) { // only bother if a player exists/is loading -- nothing to pause otherwise
       suppressNextPauseBroadcast = true;
-      player.pauseVideo();
+      ensurePlayer().then((p) => { if (!currentVideoId) p.pauseVideo(); }); // still stopped? someone may have since picked something new
     }
     fire(hooks.playState, false, 0);
     broadcastState({ videoId: '', title: '', isPlaying: false, seconds: 0 });
@@ -370,6 +379,7 @@
   function applyRemoteState(data) {
     if (data.updatedAt && data.updatedAt <= lastAppliedUpdatedAt) return;
     lastAppliedUpdatedAt = data.updatedAt || Date.now();
+    const myUpdatedAt = lastAppliedUpdatedAt; // snapshot -- lets deferred callbacks below detect a newer update superseding this one before they actually run
 
     applyingRemote = true;
     clearTimeout(applyingRemoteResetTimer);
@@ -384,7 +394,9 @@
       currentVideoId = null;
       roomScreenTitle.textContent = '';
       updateRoomScreenVisibility();
-      if (player && playerReady && player.pauseVideo) player.pauseVideo();
+      if (playerCreatePromise) {
+        ensurePlayer().then((p) => { if (!currentVideoId && lastAppliedUpdatedAt === myUpdatedAt) p.pauseVideo(); });
+      }
       fire(hooks.playState, false, 0);
       return;
     }
@@ -393,6 +405,7 @@
       selectVideo(data.videoId, data.title, { fromRemote: true, startSeconds: data.seconds || 0, paused: !data.isPlaying });
     } else {
       ensurePlayer().then((p) => {
+        if (lastAppliedUpdatedAt !== myUpdatedAt) return; // a newer update has since superseded this one
         const cur = p.getCurrentTime();
         if (typeof data.seconds === 'number' && Math.abs(cur - data.seconds) > SEEK_THRESHOLD_SEC) p.seekTo(data.seconds, true);
         if (data.isPlaying) p.playVideo(); else p.pauseVideo();
