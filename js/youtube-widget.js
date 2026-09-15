@@ -40,7 +40,7 @@
     <div class="yt-room-screen-frame" id="ytRoomScreenFrame"></div>
     <div class="yt-room-screen-bar">
       <span class="yt-room-screen-title" id="ytRoomScreenTitle"></span>
-      <button type="button" class="yt-room-screen-mute" id="ytRoomScreenMute" aria-label="音声のオン/オフ">🔇</button>
+      <button type="button" class="yt-room-screen-mute" id="ytRoomScreenMute" aria-label="音声のオン/オフ">🔊</button>
       <button type="button" class="yt-room-screen-close" id="ytRoomScreenClose" aria-label="閉じる">✕</button>
     </div>
   `;
@@ -50,7 +50,11 @@
   const roomScreenMute = document.getElementById('ytRoomScreenMute');
   const roomScreenClose = document.getElementById('ytRoomScreenClose');
 
-  let muted = true; // starts muted for everyone -- autoplaying audio nobody asked for is worse than a silent screen; unmute is a deliberate per-viewer click. Audio is the one thing that stays local/per-viewer, same as the existing BGM volume slider -- everything else (video, play/pause, stop) is fully shared.
+  // Audio is the one thing that stays local/per-viewer (like the existing
+  // BGM volume slider) -- everything else (video, play/pause, stop) is fully
+  // shared. Starts unmuted: a silent screen with no obvious explanation reads
+  // as broken, not as "click the tiny speaker icon".
+  let muted = false;
   // Every viewer sees the exact same thing: selecting, playing/pausing, and
   // stopping (the close button) are all shared-state actions that apply to
   // the whole room, the same way ball/charge/game already work. There is no
@@ -247,9 +251,9 @@
       player = new YT.Player(mount, {
         width: '100%',
         height: '100%',
-        playerVars: { rel: 0, playsinline: 1, mute: 1 },
+        playerVars: { rel: 0, playsinline: 1 },
         events: {
-          onReady: (e) => { playerReady = true; e.target.mute(); resolve(player); },
+          onReady: () => { playerReady = true; resolve(player); },
           onStateChange: handlePlayerStateChange,
         },
       });

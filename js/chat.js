@@ -234,6 +234,25 @@
     houkaiBgm.play().catch(() => {});
   }
 
+  // Ducks the ambient BGM while a YouTube video (js/youtube-widget.js) is
+  // actively playing in the room -- same idea as the houkai/rhythm-game
+  // ducking above, just triggered by that script's onPlayState hook instead
+  // of a local event, since js/youtube-widget.js knows nothing about chat.js
+  // (and chat.js needn't know anything about Firebase/the YouTube API).
+  let bgmWasPlayingBeforeYoutube = false;
+  if (window.YoutubeWidget) {
+    window.YoutubeWidget.onPlayState((isPlaying) => {
+      if (isPlaying) {
+        if (bgm.paused) return; // nothing playing to duck
+        bgmWasPlayingBeforeYoutube = true;
+        bgm.pause();
+      } else if (bgmWasPlayingBeforeYoutube) {
+        bgmWasPlayingBeforeYoutube = false;
+        bgm.play().catch(() => {});
+      }
+    });
+  }
+
   /* ---------- entry overlay ---------- */
   let selectedAvatarId = AVATARS[0].id;
   let selectedGenderId = GENDERS[0].id;
