@@ -162,13 +162,13 @@
 .yt-room-screen-close{
   pointer-events: auto;
   flex-shrink: 0;
-  font-size: 11px;
+  font-size: 13px;
   line-height: 1;
   color: rgba(255,255,255,0.85);
   background: rgba(0,0,0,0.45);
   border: none;
   border-radius: 50%;
-  width: 18px; height: 18px;
+  width: 24px; height: 24px;
   cursor: pointer;
 }
 .yt-room-screen-close:hover{ background: rgba(0,0,0,0.75); }

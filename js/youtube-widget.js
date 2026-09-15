@@ -49,8 +49,13 @@
   const roomScreenClose = document.getElementById('ytRoomScreenClose');
 
   let locallyHidden = false; // per-viewer-only "hide the screen" -- doesn't touch shared state, doesn't stop it for anyone else
+  // Nothing is shown -- and no player is even created, so no audio plays --
+  // until this viewer has actually tapped monitor.png at least once this
+  // pageview. Auto-showing whatever's already playing to someone who just
+  // walked in was scope creep, not what was asked for.
+  let revealed = false;
   function updateRoomScreenVisibility() {
-    roomScreen.hidden = !currentVideoId || locallyHidden;
+    roomScreen.hidden = !revealed || !currentVideoId || locallyHidden;
   }
   roomScreenClose.addEventListener('click', () => {
     locallyHidden = true;
@@ -101,6 +106,7 @@
   let lastKnownSeconds = 0;
   let lastPollAt = 0;
   let pollTimer = null;
+  let pendingRemoteState = null; // whatever's already playing when this viewer isn't revealed yet -- applied once they tap monitor.png
 
   function setStatus(msg) {
     if (!msg) { statusEl.hidden = true; statusEl.textContent = ''; return; }
@@ -113,6 +119,11 @@
     overlay.hidden = false;
     document.body.style.overflow = 'hidden';
     if (!gridEl.dataset.loaded) loadMostPopular();
+    if (!revealed) {
+      revealed = true;
+      locallyHidden = false;
+      if (pendingRemoteState) { const data = pendingRemoteState; pendingRemoteState = null; applyRemoteState(data); }
+    }
   }
   function closePanel() {
     overlay.hidden = true;
@@ -307,6 +318,7 @@
   }
 
   function applyRemoteState(data) {
+    if (!revealed) { pendingRemoteState = data; return; } // don't load/play anything (audio included) until they've tapped monitor.png
     if (data.updatedAt && data.updatedAt <= lastAppliedUpdatedAt) return;
     lastAppliedUpdatedAt = data.updatedAt || Date.now();
 
