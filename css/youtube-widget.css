@@ -159,6 +159,7 @@
   overflow: hidden;
   text-overflow: ellipsis;
 }
+.yt-room-screen-mute,
 .yt-room-screen-close{
   pointer-events: auto;
   flex-shrink: 0;
@@ -171,4 +172,5 @@
   width: 24px; height: 24px;
   cursor: pointer;
 }
+.yt-room-screen-mute:hover,
 .yt-room-screen-close:hover{ background: rgba(0,0,0,0.75); }

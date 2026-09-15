@@ -40,24 +40,33 @@
     <div class="yt-room-screen-frame" id="ytRoomScreenFrame"></div>
     <div class="yt-room-screen-bar">
       <span class="yt-room-screen-title" id="ytRoomScreenTitle"></span>
+      <button type="button" class="yt-room-screen-mute" id="ytRoomScreenMute" aria-label="音声のオン/オフ">🔇</button>
       <button type="button" class="yt-room-screen-close" id="ytRoomScreenClose" aria-label="閉じる">✕</button>
     </div>
   `;
   stageEl.appendChild(roomScreen);
   const roomScreenFrame = document.getElementById('ytRoomScreenFrame');
   const roomScreenTitle = document.getElementById('ytRoomScreenTitle');
+  const roomScreenMute = document.getElementById('ytRoomScreenMute');
   const roomScreenClose = document.getElementById('ytRoomScreenClose');
 
-  let locallyHidden = false; // per-viewer-only "hide the screen" -- doesn't touch shared state, doesn't stop it for anyone else
-  // As soon as anyone picks a video, it syncs to every visitor's room
-  // automatically (no need for each person to tap monitor.png themselves
-  // first) -- that's the whole "watch together" point.
+  let muted = true; // starts muted for everyone -- autoplaying audio nobody asked for is worse than a silent screen; unmute is a deliberate per-viewer click. Audio is the one thing that stays local/per-viewer, same as the existing BGM volume slider -- everything else (video, play/pause, stop) is fully shared.
+  // Every viewer sees the exact same thing: selecting, playing/pausing, and
+  // stopping (the close button) are all shared-state actions that apply to
+  // the whole room, the same way ball/charge/game already work. There is no
+  // per-viewer "hide just for me".
   function updateRoomScreenVisibility() {
-    roomScreen.hidden = !currentVideoId || locallyHidden;
+    roomScreen.hidden = !currentVideoId;
   }
   roomScreenClose.addEventListener('click', () => {
-    locallyHidden = true;
-    updateRoomScreenVisibility();
+    // Stops it for everyone (see stopForEveryone below), not just this tab.
+    stopForEveryone();
+  });
+  roomScreenMute.addEventListener('click', () => {
+    if (!player || !playerReady) return;
+    muted = !muted;
+    if (muted) player.mute(); else player.unMute();
+    roomScreenMute.textContent = muted ? '🔇' : '🔊';
   });
 
   const apiKey = (typeof YOUTUBE_API_KEY === 'string') ? YOUTUBE_API_KEY : '';
@@ -111,7 +120,7 @@
     statusEl.textContent = msg;
   }
 
-  /* ---------- search panel open/close (playback is unaffected either way -- see roomScreen above) ---------- */
+  /* ---------- search panel open/close ---------- */
   function openPanel() {
     overlay.hidden = false;
     document.body.style.overflow = 'hidden';
@@ -238,9 +247,9 @@
       player = new YT.Player(mount, {
         width: '100%',
         height: '100%',
-        playerVars: { rel: 0, playsinline: 1 },
+        playerVars: { rel: 0, playsinline: 1, mute: 1 },
         events: {
-          onReady: () => { playerReady = true; resolve(player); },
+          onReady: (e) => { playerReady = true; e.target.mute(); resolve(player); },
           onStateChange: handlePlayerStateChange,
         },
       });
@@ -250,8 +259,6 @@
 
   function selectVideo(videoId, title, opts) {
     opts = opts || {};
-    const isNewVideo = videoId !== currentVideoId;
-    if (isNewVideo) locallyHidden = false; // a genuine new pick should reappear even if this viewer had dismissed the previous one
     currentVideoId = videoId;
     updateRoomScreenVisibility();
     roomScreenTitle.textContent = title || '';
@@ -263,15 +270,32 @@
     if (!opts.fromRemote) broadcastState({ videoId, title, isPlaying: !opts.paused, seconds: opts.startSeconds || 0 });
   }
 
+  // The close button: stops playback for the whole room, not just this tab
+  // (see the shared "youtube" node comment above broadcastState).
+  let suppressNextPauseBroadcast = false; // avoids a redundant/invalid second write from pauseVideo()'s own onStateChange racing the explicit stop write below
+  function stopForEveryone() {
+    currentVideoId = null;
+    roomScreenTitle.textContent = '';
+    updateRoomScreenVisibility();
+    if (player && playerReady && player.pauseVideo) {
+      suppressNextPauseBroadcast = true;
+      player.pauseVideo();
+    }
+    fire(hooks.playState, false, 0);
+    broadcastState({ videoId: '', title: '', isPlaying: false, seconds: 0 });
+  }
+
   function handlePlayerStateChange(e) {
     if (applyingRemote) return; // caused by us applying a remote update, not a local user action -- don't echo it back
+    const skipBroadcast = suppressNextPauseBroadcast;
+    suppressNextPauseBroadcast = false;
     if (e.data === YT.PlayerState.PLAYING) {
       fire(hooks.playState, true, player.getCurrentTime());
-      broadcastState({ isPlaying: true, seconds: player.getCurrentTime() });
+      if (!skipBroadcast) broadcastState({ isPlaying: true, seconds: player.getCurrentTime() });
       startPolling();
     } else if (e.data === YT.PlayerState.PAUSED) {
       fire(hooks.playState, false, player.getCurrentTime());
-      broadcastState({ isPlaying: false, seconds: player.getCurrentTime() });
+      if (!skipBroadcast) broadcastState({ isPlaying: false, seconds: player.getCurrentTime() });
     }
   }
 
@@ -320,6 +344,17 @@
       if (player && playerReady) { lastKnownSeconds = player.getCurrentTime(); lastPollAt = Date.now(); }
     }, APPLYING_REMOTE_MS);
 
+    if (!data.videoId) {
+      // someone stopped it for the whole room -- don't route an empty id
+      // through loadVideoById, just clear the screen.
+      currentVideoId = null;
+      roomScreenTitle.textContent = '';
+      updateRoomScreenVisibility();
+      if (player && playerReady && player.pauseVideo) player.pauseVideo();
+      fire(hooks.playState, false, 0);
+      return;
+    }
+
     if (data.videoId !== currentVideoId) {
       selectVideo(data.videoId, data.title, { fromRemote: true, startSeconds: data.seconds || 0, paused: !data.isPlaying });
     } else {
@@ -339,7 +374,7 @@
   if (db) {
     db.ref('youtube').on('value', (snap) => {
       const data = snap.val();
-      if (data && data.videoId) applyRemoteState(data);
+      if (data) applyRemoteState(data); // videoId may be '' (stopped) -- still needs to reach applyRemoteState to clear everyone's screen
     });
   }
 })();
