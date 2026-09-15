@@ -1,0 +1,142 @@
+/* ==========================================================
+   ACQUA HOUSE - YouTube search/play widget
+   Reuses the site's own neon dark palette (--bg-alt / --cyan / --pink /
+   --border from style.css) rather than YouTube's own red branding.
+   ========================================================== */
+
+.yt-overlay{
+  position: fixed; inset: 0; z-index: 220; /* above rhythm overlays (200) */
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(4,10,26,0.9);
+  backdrop-filter: blur(6px);
+  padding: 16px;
+}
+.yt-overlay[hidden]{ display: none; } /* see Cloud.md's [hidden]-vs-display pitfall -- this pairing is required */
+
+.yt-panel{
+  width: 100%; max-width: 980px; height: 100%; max-height: 720px;
+  background: var(--bg-alt);
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  display: flex; flex-direction: column;
+  overflow: hidden;
+}
+
+.yt-panel-header{
+  display: flex; align-items: center; gap: 10px;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.yt-search-row{
+  flex: 1;
+  display: flex; align-items: center; gap: 8px;
+  background: rgba(6,20,52,0.6);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 6px 6px 6px 16px;
+}
+.yt-search-row input{
+  flex: 1;
+  background: none; border: none; outline: none;
+  color: var(--fg);
+  font-size: 14px;
+  font-family: var(--font-body);
+}
+.yt-search-row input::placeholder{ color: var(--fg-dim); }
+.yt-search-btn, .yt-close-btn{
+  font-size: 15px;
+  line-height: 1;
+  color: var(--fg-dim);
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  width: 32px; height: 32px;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: color .2s ease, border-color .2s ease;
+}
+.yt-search-btn:hover, .yt-close-btn:hover{ color: var(--fg); border-color: var(--cyan); }
+.yt-search-btn:disabled{ opacity: 0.5; cursor: default; }
+
+.yt-body{
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px;
+}
+
+.yt-player-wrap{ margin-bottom: 18px; }
+.yt-player-wrap[hidden]{ display: none; }
+.yt-player-box{
+  position: relative;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  background: #000;
+  border-radius: 12px;
+  overflow: hidden;
+}
+.yt-player-box iframe{
+  position: absolute; inset: 0;
+  width: 100% !important; height: 100% !important;
+  border: 0;
+}
+.yt-now-playing{
+  margin: 10px 2px 0;
+  font-size: 13px;
+  color: var(--fg-dim);
+}
+
+.yt-status{
+  color: var(--fg-dim);
+  font-size: 13px;
+  text-align: center;
+  padding: 24px 0;
+}
+.yt-status[hidden]{ display: none; }
+
+.yt-grid{
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 16px;
+}
+.yt-card{
+  display: flex; flex-direction: column;
+  align-items: stretch;
+  text-align: left;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  color: var(--fg);
+  font-family: var(--font-body);
+}
+.yt-thumb-wrap{
+  display: block;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  border-radius: 10px;
+  overflow: hidden;
+  background: rgba(150,195,255,0.08);
+}
+.yt-thumb-wrap img{ width: 100%; height: 100%; object-fit: cover; display: block; transition: transform .2s ease; }
+.yt-card:hover .yt-thumb-wrap img{ transform: scale(1.04); }
+.yt-card-title{
+  margin-top: 8px;
+  font-size: 13px;
+  line-height: 1.4;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.yt-card-channel{
+  margin-top: 4px;
+  font-size: 12px;
+  color: var(--fg-dim);
+}
+
+@media (max-width: 520px){
+  .yt-panel{ max-height: 100%; border-radius: 0; }
+  .yt-grid{ grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 12px; }
+}
