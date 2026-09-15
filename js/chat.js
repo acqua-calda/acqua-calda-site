@@ -608,7 +608,12 @@
   const POPN_POS_KEY = 'acquaHousePopnPos';
   const POPN_DEFAULT_POS = { x: 150, y: 260 };
   const POPN_LONG_PRESS_MS = 450;
-  const POPN_MOVE_CANCEL_PX = 10; // if the pointer wanders this far before the long-press fires, it's a stray touch/scroll, not drag intent
+  // A mouse can hold dead-still for 450ms; a finger naturally can't -- on a
+  // touchscreen this stayed well under 10px almost never, silently
+  // cancelling the long-press before it ever fired and making popn.png/
+  // monitor.png effectively undraggable on mobile. Wide enough now to
+  // absorb normal finger tremor while still catching an actual drag/swipe.
+  const POPN_MOVE_CANCEL_PX = 24;
 
   function loadPopnPos() {
     try {
