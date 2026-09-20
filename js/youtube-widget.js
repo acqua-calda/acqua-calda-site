@@ -124,17 +124,22 @@
     statusEl.textContent = msg;
   }
 
-  /* ---------- search panel: fully shared (open state, typed query, results) ---------- */
+  /* ---------- search panel: local to whoever opened it (not shared) ---------- */
+  // Only the room screen / playback state is shared with everyone (see
+  // broadcastState below) -- the search/browse panel itself is each
+  // viewer's own private UI, the same way it works on any other site.
+  // Previously this also broadcast {open, query, resultsJson} over Firebase
+  // and every tab in the room applied it, which popped the search panel
+  // open/closed on EVERYONE's screen the instant any one person tapped the
+  // monitor or typed a letter.
   function openPanel() {
     overlay.hidden = false;
     document.body.style.overflow = 'hidden';
     if (!gridEl.dataset.loaded) loadMostPopular();
-    broadcastSearchState({ open: true, query: searchInput.value || '' }); // query included so the very first-ever write already satisfies the required-fields rule
   }
   function closePanel() {
     overlay.hidden = true;
     document.body.style.overflow = '';
-    broadcastSearchState({ open: false });
   }
   closeBtn.addEventListener('click', closePanel);
   overlay.addEventListener('click', (e) => { if (e.target === overlay) closePanel(); });
@@ -158,11 +163,8 @@
       });
   }
 
-  // Raw API items are trimmed down to just what a card needs before
-  // rendering -- this same slim shape is what gets JSON-stringified into
-  // Firebase (see broadcastSearchState) so every viewer renders identical
-  // results without each of them separately hitting the Data API (and
-  // burning quota) for the same query.
+  // Raw API items are trimmed down to just what a card actually needs before
+  // rendering.
   function slimItems(items) {
     return items.map((item) => {
       const videoId = typeof item.id === 'string' ? item.id : (item.id && item.id.videoId);
@@ -213,9 +215,7 @@
     api('videos', { part: 'snippet', chart: 'mostPopular', regionCode: 'JP', maxResults: String(MAX_RESULTS) })
       .then((data) => {
         setStatus('');
-        const items = slimItems(data.items || []);
-        renderGrid(items);
-        broadcastSearchState({ query: '', resultsJson: JSON.stringify(items) });
+        renderGrid(slimItems(data.items || []));
       })
       .catch((err) => { setStatus('動画一覧を取得できませんでした（' + err.message + '）'); });
   }
@@ -226,22 +226,10 @@
     api('search', { part: 'snippet', type: 'video', q: query, maxResults: String(MAX_RESULTS) })
       .then((data) => {
         setStatus('');
-        const items = slimItems(data.items || []);
-        renderGrid(items);
-        broadcastSearchState({ query, resultsJson: JSON.stringify(items) });
+        renderGrid(slimItems(data.items || []));
       })
       .catch((err) => { setStatus('検索に失敗しました（' + err.message + '）'); });
   }
-
-  // Broadcasts the typed query live, keystroke by keystroke (lightly
-  // debounced), so everyone's search box mirrors whoever's typing -- but
-  // never overwrites *your own* box while you're the one actively focused
-  // on it (see applySearchState below).
-  let queryDebounceTimer = null;
-  searchInput.addEventListener('input', () => {
-    clearTimeout(queryDebounceTimer);
-    queryDebounceTimer = setTimeout(() => { broadcastSearchState({ query: searchInput.value }); }, 120);
-  });
 
   searchForm.addEventListener('submit', (e) => {
     e.preventDefault();
@@ -425,44 +413,4 @@
     });
   }
 
-  /* ---------- search panel sync (separate node -- see Cloud.md's RTDB rules) ---------- */
-  function broadcastSearchState(patch) {
-    if (!db) return;
-    const payload = Object.assign({
-      updatedAt: firebase.database.ServerValue.TIMESTAMP,
-      updatedBy: myUid(),
-    }, patch);
-    db.ref('youtubeSearch').update(payload).catch(() => {});
-  }
-
-  let lastAppliedSearchUpdatedAt = 0;
-  let lastAppliedResultsJson = null;
-  function applySearchState(data) {
-    if (data.updatedAt && data.updatedAt <= lastAppliedSearchUpdatedAt) return;
-    lastAppliedSearchUpdatedAt = data.updatedAt || Date.now();
-
-    if (typeof data.open === 'boolean') {
-      overlay.hidden = !data.open;
-      document.body.style.overflow = data.open ? 'hidden' : '';
-    }
-    // Never stomp on what THIS viewer is actively typing -- only mirror
-    // incoming text while their own box isn't focused.
-    if (typeof data.query === 'string' && document.activeElement !== searchInput) {
-      searchInput.value = data.query;
-    }
-    if (typeof data.resultsJson === 'string' && data.resultsJson !== lastAppliedResultsJson) {
-      lastAppliedResultsJson = data.resultsJson;
-      try {
-        setStatus('');
-        renderGrid(JSON.parse(data.resultsJson));
-      } catch (err) { /* malformed/stale -- leave whatever's already shown */ }
-    }
-  }
-
-  if (db) {
-    db.ref('youtubeSearch').on('value', (snap) => {
-      const data = snap.val();
-      if (data) applySearchState(data);
-    });
-  }
 })();

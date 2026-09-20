@@ -36,7 +36,7 @@
   // Bump this whenever a deploy is worth being able to tell apart at a
   // glance -- shown on the top screen before character select so a stale
   // cached tab is obvious (it'll be missing/behind whatever's live).
-  const APP_VERSION = 'Ver1.2';
+  const APP_VERSION = 'Ver1.3';
   const ADMIN_STORAGE_KEY = 'acquaHouseAdmin';
   const ADMIN_DURATION_MS = 24 * 60 * 60 * 1000; // must match js/script.js's ACCESS_KEY_DURATION_MS
   const WORLD_W = 900;
@@ -228,7 +228,14 @@
   }
 
   let bgmWasPlayingBeforeHoukai = false;
+  let houkaiFallbackTimer = null;
+  // houkai.mp3 runs ~35s -- if playback never actually starts (blocked by
+  // the browser, failed to load, etc.) neither 'ended' nor 'error' ever
+  // fires, and without this safety net the room would stay swapped to
+  // img/houkai.png/silent forever until someone reloads the page.
+  const HOUKAI_FALLBACK_MS = 36000;
   function endHoukaiEffect() {
+    clearTimeout(houkaiFallbackTimer);
     stage.classList.remove('is-houkai');
     houkaiBgm.pause();
     houkaiBgm.currentTime = 0;
@@ -241,7 +248,9 @@
     bgmWasPlayingBeforeHoukai = !bgm.paused;
     bgm.pause(); // let houkai.mp3 take over instead of overlapping the room's ambient BGM
     houkaiBgm.currentTime = 0;
-    houkaiBgm.play().catch(() => {});
+    houkaiBgm.play().catch(() => {}); // if this rejects (e.g. autoplay blocked), the fallback timer below still reverts the room
+    clearTimeout(houkaiFallbackTimer);
+    houkaiFallbackTimer = setTimeout(endHoukaiEffect, HOUKAI_FALLBACK_MS);
   }
 
   // Ducks the ambient BGM while a YouTube video (js/youtube-widget.js) is
@@ -1810,7 +1819,17 @@
       // event by the next client that attaches the listener (e.g. a reload)
       const move = SPECIAL_MOVE_BY_AVATAR[profile && profile.avatar];
       const releaseDurationMs = (move === 'genkidama' ? GENKI_MAX_FLIGHT_MS : BEAM_TOTAL_MS) + 500;
-      setTimeout(() => { db.ref('charge/' + myUidAtRelease).remove(); }, releaseDurationMs);
+      setTimeout(() => {
+        // Only remove if this is still the exact release we scheduled this
+        // cleanup for -- if the player already started (and maybe finished)
+        // a fresh charge/release cycle in the meantime, a blind remove()
+        // here would delete THAT cycle's node instead (cutting its sound/
+        // pose/orb off mid-flight, since child_removed treats it as "gone").
+        db.ref('charge/' + myUidAtRelease).transaction((current) => {
+          if (current && current.releasedAt === serverNow) return null;
+          return current;
+        });
+      }, releaseDurationMs);
     });
   }
 
@@ -2023,6 +2042,31 @@
     });
   }
 
+  // Realtime Database's onDisconnect().remove() fires on ANY socket drop --
+  // including ones the SDK quietly auto-reconnects from a moment later (a
+  // phone briefly losing signal, the tab getting backgrounded, switching
+  // wifi/cellular). Once it fires it deletes this client's presence node
+  // server-side and is itself gone; if we never re-arm it, this tab still
+  // thinks it's in the room (myEl/chat all keep working locally, including
+  // sending messages, since those don't touch presence) while every other
+  // client sees this avatar's child_removed and it vanishes for them. The
+  // standard fix is to redo both the write and the onDisconnect() every time
+  // '.info/connected' flips back to true, not just once at initial entry.
+  function attachConnectionWatcher() {
+    db.ref('.info/connected').on('value', (snap) => {
+      if (snap.val() !== true || !presenceRef || !myUid) return;
+      presenceRef.onDisconnect().remove();
+      presenceRef.set({
+        name: profile.name,
+        avatar: profile.avatar,
+        x: myState.x,
+        y: myState.y,
+        facing: myState.facing,
+        updatedAt: firebase.database.ServerValue.TIMESTAMP,
+      });
+    });
+  }
+
   /* ---------- chat log ---------- */
   function appendLogLine(entry) {
     const row = document.createElement('p');
@@ -2182,6 +2226,7 @@
         attachRhythmGameListener();
         attachBallListener();
         attachChargeListener();
+        attachConnectionWatcher();
       }
       attachLogListener(); // fresh each entry so old messages never show up
       if (!loopStarted) { loopStarted = true; requestAnimationFrame(loop); }
