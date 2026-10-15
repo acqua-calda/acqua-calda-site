@@ -9,6 +9,21 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=Baloo+2:wght@600;700;800&family=Noto+Sans+JP:wght@300;400;500;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="css/style.css?v=25">
+<script>
+  // Runs before <body> is parsed so the browser never jumps to a stale "#contact"
+  // (Safari does that as soon as the section is parsed). The hash is only kept when
+  // arriving from another page of this site (chat.html's nav); js/script.js then
+  // scrolls to it, or back to the top, once the page has loaded.
+  (function () {
+    if ('scrollRestoration' in history) history.scrollRestoration = 'manual';
+    var nav = performance.getEntriesByType && performance.getEntriesByType('navigation')[0];
+    var fromOwnSite = false;
+    try { fromOwnSite = new URL(document.referrer).origin === location.origin; } catch (e) {}
+    var keep = !!location.hash && fromOwnSite && (!nav || nav.type === 'navigate');
+    window.__initialScrollHash = keep ? location.hash : '';
+    if (location.hash && !keep) history.replaceState(null, '', location.pathname + location.search);
+  })();
+</script>
 </head>
 <body>
 
@@ -281,7 +296,7 @@
   </div>
 </div>
 
-<script src="js/script.js?v=12"></script>
+<script src="js/script.js?v=13"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
 <script src="js/firebase-config.js?v=2"></script>

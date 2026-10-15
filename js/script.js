@@ -2,28 +2,26 @@
   'use strict';
 
   /* ---------- always open at the top ---------- */
-  // Reloads, bookmarks or shared links carrying a stale "#contact" (and the
-  // browser's own scroll restoration) used to open the page at the bottom.
-  // Only honour the hash when arriving from another page of this site
-  // (e.g. chat.html's nav links); otherwise start at the logo.
-  if ('scrollRestoration' in history) history.scrollRestoration = 'manual';
-  const navEntry = performance.getEntriesByType && performance.getEntriesByType('navigation')[0];
-  const fromOwnSite = (() => {
-    try { return new URL(document.referrer).origin === location.origin; } catch { return false; }
-  })();
-  const honourHash = location.hash && fromOwnSite && (!navEntry || navEntry.type === 'navigate');
-  if (!honourHash) {
-    if (location.hash) history.replaceState(null, '', location.pathname + location.search);
-    const toTop = () => window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
-    toTop();
-    window.addEventListener('load', toTop, { once: true });
-  } else {
-    // manual scroll restoration can skip the native fragment jump, so do it ourselves
-    window.addEventListener('load', () => {
-      const target = document.getElementById(decodeURIComponent(location.hash.slice(1)));
-      target && target.scrollIntoView({ behavior: 'instant' });
-    }, { once: true });
-  }
+  // The inline script in index.html's <head> already decided whether to keep
+  // the URL hash (window.__initialScrollHash) and stripped a stale one. Here we
+  // jump there -- or to the logo -- without the CSS smooth-scroll animation
+  // (behavior:'instant' isn't supported by older Safari, so toggle the CSS).
+  const jumpTo = (y) => {
+    const html = document.documentElement;
+    const prev = html.style.scrollBehavior;
+    html.style.scrollBehavior = 'auto';
+    window.scrollTo(0, y);
+    html.style.scrollBehavior = prev;
+  };
+  const initialScroll = () => {
+    const hash = window.__initialScrollHash;
+    const target = hash && document.getElementById(decodeURIComponent(hash.slice(1)));
+    if (!target) { jumpTo(0); return; }
+    const headerH = parseFloat(getComputedStyle(document.documentElement).scrollPaddingTop) || 0;
+    jumpTo(target.getBoundingClientRect().top + window.scrollY - headerH);
+  };
+  initialScroll();
+  window.addEventListener('load', initialScroll, { once: true });
 
   /* ---------- mobile nav toggle ---------- */
   const navToggle = document.getElementById('navToggle');
