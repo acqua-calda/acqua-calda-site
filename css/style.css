@@ -288,6 +288,23 @@ img{ max-width:100%; display:block; }
   font-size: 13px; transition: all .25s ease;
 }
 .track-play:hover{ background: var(--cyan); color: var(--black); border-color: var(--cyan); box-shadow: 0 0 18px rgba(0,224,255,0.5); }
+.track-links{ display:flex; align-items:center; gap: 8px; flex-shrink:0; }
+.stream-link{
+  --brand: var(--cyan);
+  width: 34px; height: 34px; border-radius: 50%;
+  display:flex; align-items:center; justify-content:center;
+  color: var(--fg-dim); border: 1px solid transparent;
+  transition: color .25s ease, background .25s ease, border-color .25s ease, transform .25s ease;
+}
+.stream-link svg{ width: 18px; height: 18px; fill: currentColor; display:block; }
+.stream-link:hover, .stream-link:focus-visible{
+  color: var(--brand); border-color: var(--brand);
+  background: rgba(255,255,255,0.05); transform: translateY(-2px);
+}
+.stream-spotify{ --brand: #1ed760; }
+.stream-apple{ --brand: #fa2d48; }
+.stream-youtube{ --brand: #ff3b3b; }
+.stream-amazon{ --brand: #25d1da; }
 .track-soon{ opacity: 0.45; }
 .track-soon .track-art{ background: rgba(255,255,255,0.04); color: var(--fg-dim); }
 .track-soon .track-title{ font-family: var(--font-display); font-size: 14px; letter-spacing: 0.1em; color: var(--fg-dim); }
@@ -372,6 +389,8 @@ img{ max-width:100%; display:block; }
   .sp-only{ display:inline; }
   .section{ padding: 90px 20px; }
   .track{ flex-wrap: wrap; }
+  /* streaming icons drop to their own row, aligned under the title */
+  .track-links{ order: 3; width: 100%; padding-left: 84px; margin-top: -8px; }
   .live-item{ flex-wrap: wrap; }
 
   /* keep ABOUT and MEMBERS side-by-side even on phones, just more compact */
